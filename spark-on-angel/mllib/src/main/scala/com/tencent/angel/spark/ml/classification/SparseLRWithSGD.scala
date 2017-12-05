@@ -16,6 +16,7 @@
 
 package com.tencent.angel.spark.ml.classification
 
+import com.tencent.angel.spark.models.vector.enhanced.BreezePSVector
 import scala.collection.mutable.ArrayBuffer
 
 import breeze.linalg.DenseVector
@@ -27,7 +28,7 @@ import com.tencent.angel.spark.context.PSContext
 import com.tencent.angel.spark.ml.sparse.SparseLogistic
 import com.tencent.angel.spark.ml.common.OneHot.OneHotVector
 import com.tencent.angel.spark.ml.util.{ArgsUtil, DataLoader}
-import com.tencent.angel.spark.model.vector.BreezePSVector
+import com.tencent.angel.spark.models.vector.PSVector
 
 
 object SparseLRWithSGD {
@@ -64,8 +65,12 @@ object SparseLRWithSGD {
     println(s"feat length: $featLength")
 
     updateType match {
-      case "spark" => runSGD(instances, featLength, stepSize, maxIter)
-      case "ps" => runPSSGD(instances, featLength, stepSize, maxIter)
+      case "spark" =>
+        println(s"run spark sgd")
+        runSGD(instances, featLength, stepSize, maxIter)
+      case "ps" =>
+        println(s"run ps sgd")
+        runPSSGD(instances, featLength, stepSize, maxIter)
       case _ => println(s"wrong update type: $updateType (spark or ps)")
     }
   }
@@ -91,8 +96,7 @@ object SparseLRWithSGD {
   }
 
   def runPSSGD(trainData: RDD[(OneHotVector, Double)], dim: Int, stepSize: Double, maxIter: Int): Unit = {
-    val pool = PSContext.getOrCreate().createModelPool(dim, 10)
-    val initWeightPS = pool.createZero().mkBreeze()
+    val initWeightPS = PSVector.dense(dim).toBreeze
     val sgd = StochasticGradientDescent[BreezePSVector](stepSize, maxIter)
     val states = sgd.iterations(SparseLogistic.PSCost(trainData), initWeightPS)
 
@@ -107,7 +111,7 @@ object SparseLRWithSGD {
       }
     }
     println(s"loss history: ${lossHistory.toArray.mkString(" ")}")
-    println(s"weights: ${weight.toRemote.pull().take(100).mkString(" ")}")
+    println(s"weights: ${weight.pull().take(100).mkString(" ")}")
   }
 
 }

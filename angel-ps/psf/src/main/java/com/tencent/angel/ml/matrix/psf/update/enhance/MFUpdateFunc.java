@@ -18,10 +18,12 @@
 package com.tencent.angel.ml.matrix.psf.update.enhance;
 
 import com.tencent.angel.common.Serialize;
+import com.tencent.angel.ml.matrix.psf.common.Utils;
 import com.tencent.angel.ps.impl.PSContext;
 import com.tencent.angel.ps.impl.matrix.ServerDenseDoubleRow;
 import com.tencent.angel.ps.impl.matrix.ServerPartition;
 import com.tencent.angel.ps.impl.matrix.ServerRow;
+import com.tencent.angel.ps.impl.matrix.ServerSparseDoubleLongKeyRow;
 
 /**
  * `MFUpdateFunc` is a POF Update for multi rows in matrix with a user-defined function.
@@ -50,11 +52,13 @@ public abstract class MFUpdateFunc extends UpdateFunc {
       MFUpdateParam.MFPartitionUpdateParam mf = (MFUpdateParam.MFPartitionUpdateParam) partParam;
 
       int[] rowIds = mf.getRowIds();
-      ServerRow[] rows = new ServerRow[rowIds.length];
-      for (int i = 0; i < rowIds.length; i++) {
-        rows[i] = part.getRow(rowIds[i]);
+      if (Utils.withinPart(partParam.getPartKey(), rowIds)) {
+        ServerRow[] rows = new ServerRow[rowIds.length];
+        for (int i = 0; i < rowIds.length; i++) {
+          rows[i] = part.getRow(rowIds[i]);
+        }
+        update(rows, mf.getFunc());
       }
-      update(rows, mf.getFunc());
     }
   }
 
@@ -67,11 +71,20 @@ public abstract class MFUpdateFunc extends UpdateFunc {
         }
         doUpdate(denseRows, func);
         return;
+      case T_DOUBLE_SPARSE_LONGKEY:
+        ServerSparseDoubleLongKeyRow[] sparseRows = new ServerSparseDoubleLongKeyRow[rows.length];
+        for (int i = 0; i < rows.length; i++) {
+          sparseRows[i] = (ServerSparseDoubleLongKeyRow) rows[i];
+        }
+        doUpdate(sparseRows, func);
+        return;
       default:
         throw new RuntimeException("currently only supports Double Dense Row");
     }
   }
 
   protected abstract void doUpdate(ServerDenseDoubleRow[] rows, Serialize func);
+
+  protected abstract void doUpdate(ServerSparseDoubleLongKeyRow[] rows, Serialize func);
 
 }

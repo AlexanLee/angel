@@ -12,15 +12,16 @@
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
- *
  */
 
 package com.tencent.angel.ml.matrix.psf.update.enhance;
 
+import com.tencent.angel.ml.matrix.psf.common.Utils;
 import com.tencent.angel.ps.impl.PSContext;
 import com.tencent.angel.ps.impl.matrix.ServerDenseDoubleRow;
 import com.tencent.angel.ps.impl.matrix.ServerPartition;
 import com.tencent.angel.ps.impl.matrix.ServerRow;
+import com.tencent.angel.ps.impl.matrix.ServerSparseDoubleLongKeyRow;
 
 /**
  * `VAUpdateFunc` is a POF updater for a row in matrix with an array parameter.
@@ -46,9 +47,12 @@ public abstract class VAUpdateFunc extends UpdateFunc {
     if (part != null) {
       VAUpdateParam.VAPartitionUpdateParam va =
           (VAUpdateParam.VAPartitionUpdateParam) partParam;
-      ServerRow row = part.getRow(va.getRowId());
-      if (row != null) {
-        update(row, va.getArraySlice());
+      int rowId = va.getRowId();
+      if (Utils.withinPart(partParam.getPartKey(), new int[]{rowId})){
+        ServerRow row = part.getRow(rowId);
+        if (row != null) {
+          update(row, va.getArray());
+        }
       }
     }
   }
@@ -58,11 +62,16 @@ public abstract class VAUpdateFunc extends UpdateFunc {
       case T_DOUBLE_DENSE:
         doUpdate((ServerDenseDoubleRow) row, arraySlice);
         return;
+      case T_DOUBLE_SPARSE_LONGKEY:
+        doUpdate((ServerSparseDoubleLongKeyRow) row, arraySlice);
       default:
-        throw new RuntimeException("Spark on Angel currently only supports Double Dense Row");
+        throw new RuntimeException("currently only supports T_DOUBLE_DENSE and T_DOUBLE_SPARSE_LONGKEY");
     }
   }
 
   protected abstract void doUpdate(ServerDenseDoubleRow row, double[] arraySlice);
+
+  protected abstract void doUpdate(ServerSparseDoubleLongKeyRow row, double[] arraySlice);
+
 
 }

@@ -17,6 +17,7 @@
 
 package com.tencent.angel.ml.matrix.psf.aggr.enhance;
 
+import com.tencent.angel.ml.matrix.psf.common.Utils;
 import com.tencent.angel.ml.matrix.psf.get.base.GetFunc;
 import com.tencent.angel.ml.matrix.psf.get.base.PartitionGetParam;
 import com.tencent.angel.ml.matrix.psf.get.base.PartitionGetResult;
@@ -24,6 +25,7 @@ import com.tencent.angel.ps.impl.PSContext;
 import com.tencent.angel.ps.impl.matrix.ServerDenseDoubleRow;
 import com.tencent.angel.ps.impl.matrix.ServerPartition;
 import com.tencent.angel.ps.impl.matrix.ServerRow;
+import com.tencent.angel.ps.impl.matrix.ServerSparseDoubleLongKeyRow;
 
 /**
  * This is abstract class of Binary Aggregate Function of POF (PS Oriented Function),
@@ -48,25 +50,32 @@ public abstract class BinaryAggrFunc extends GetFunc {
     int rowId1 = ((BinaryAggrParam.BinaryPartitionAggrParam) partKey).getRowId1();
     int rowId2 = ((BinaryAggrParam.BinaryPartitionAggrParam) partKey).getRowId2();
 
-    double result = 0.0;
-    if (part != null) {
-      ServerRow row1 = part.getRow(rowId1);
-      ServerRow row2 = part.getRow(rowId2);
-      if (row1 != null && row2 != null) result = processRows(row1, row2);
+    if (Utils.withinPart(partKey.getPartKey(), new int[]{rowId1, rowId2})) {
+      if (part != null) {
+        ServerRow row1 = part.getRow(rowId1);
+        ServerRow row2 = part.getRow(rowId2);
+        if (row1 != null && row2 != null) {
+          double result = processRows(row1, row2);
+          return new ScalarPartitionAggrResult(result);
+        }
+      }
     }
-
-    return new ScalarPartitionAggrResult(result);
+    return null;
   }
 
   private double processRows(ServerRow row1, ServerRow row2) {
     switch (row1.getRowType()) {
       case T_DOUBLE_DENSE:
         return doProcessRow((ServerDenseDoubleRow) row1, (ServerDenseDoubleRow) row2);
+      case T_DOUBLE_SPARSE_LONGKEY:
+        return doProcessRow((ServerSparseDoubleLongKeyRow) row1, (ServerSparseDoubleLongKeyRow) row2);
       default:
         throw new RuntimeException("Spark on Angel currently only supports Double Dense Row");
     }
   }
 
   protected abstract double doProcessRow(ServerDenseDoubleRow row1, ServerDenseDoubleRow row2);
+
+  protected abstract double doProcessRow(ServerSparseDoubleLongKeyRow row1, ServerSparseDoubleLongKeyRow row2);
 
 }

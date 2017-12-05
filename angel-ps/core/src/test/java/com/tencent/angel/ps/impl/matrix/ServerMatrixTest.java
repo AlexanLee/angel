@@ -113,37 +113,39 @@ public class ServerMatrixTest {
     mpBuilderNew.addPartitions(partitionBuilderNew.build());
     MatrixPartition matrixNew = mpBuilderNew.build();
     ServerMatrix ServerMatrixNew = new ServerMatrix(matrixNew);
-    DataOutputStream out = new DataOutputStream(new FileOutputStream("data"));
-    ServerMatrixNew.writeTo(out);
-    out.close();
+
+    DataOutputStream out = null;
+    try {
+      out = new DataOutputStream(new FileOutputStream("data"));
+      ServerMatrixNew.writeSnapshot(out);
+    } finally {
+      if(out != null) {
+        out.close();
+      }
+    }
+
     assertEquals(1, ServerMatrixNew.getTotalPartitionKeys().size());
-    DataInputStream in = new DataInputStream(new FileInputStream("data"));
-    serverMatrix.readFrom(in);
+
+    DataInputStream in = null;
+    try {
+      in = new DataInputStream(new FileInputStream("data"));
+      serverMatrix.readSnapshot(in);
+    } finally {
+      if(in != null) {
+        in.close();
+      }
+    }
   }
 
   @Test
   public void testWriteTo() throws Exception {
     DataOutputStream out = new DataOutputStream(new FileOutputStream("data"));
-    serverMatrix.writeTo(out);
+    serverMatrix.writeSnapshot(out);
     out.close();
     DataInputStream in = new DataInputStream(new FileInputStream("data"));
     assertEquals(2, in.readInt());// size
     in.close();
   }
-
-  @Test
-  public void testWriteHeader() throws Exception {
-    DataOutputStream out = new DataOutputStream(new FileOutputStream("data"));
-    serverMatrix.writeHeader(out);
-    out.close();
-    DataInputStream in = new DataInputStream(new FileInputStream("data"));
-    assertEquals(1, in.readInt());
-    assertEquals(2, in.readInt());// size
-    in.close();
-  }
-
-  @Test
-  public void testReadHeader() throws Exception {}
 
   @Test
   public void testGetPartition1() throws Exception {}

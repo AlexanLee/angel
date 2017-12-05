@@ -23,13 +23,13 @@ import org.apache.spark.sql.SparkSession
 
 import com.tencent.angel.spark.context.PSContext
 import com.tencent.angel.spark.examples.util.Logistic
-import com.tencent.angel.spark.examples.util.PSExamples._
+import com.tencent.angel.spark.examples.util.SparkUtils._
 
 object LogisticRegression {
 
   def main(args: Array[String]): Unit = {
     parseArgs(args)
-    runWithSparkContext(this.getClass.getSimpleName) { sc =>
+    runSpark(this.getClass.getSimpleName) { sc =>
       PSContext.getOrCreate(sc)
 
       run(N, DIM, numSlices, ITERATIONS)

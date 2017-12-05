@@ -23,9 +23,12 @@ import com.tencent.angel.ml.matrix.psf.aggr.enhance.UnaryAggrFunc;
 import com.tencent.angel.ml.matrix.psf.get.base.GetResult;
 import com.tencent.angel.ml.matrix.psf.get.base.PartitionGetResult;
 import com.tencent.angel.ps.impl.matrix.ServerDenseDoubleRow;
+import com.tencent.angel.ps.impl.matrix.ServerSparseDoubleLongKeyRow;
+import it.unimi.dsi.fastutil.longs.Long2DoubleOpenHashMap;
 
 import java.nio.DoubleBuffer;
 import java.util.List;
+import java.util.Map;
 
 /**
  * `Amin` will aggregate the minimum absolute value of the `rowId` row in `matrixId` matrix.
@@ -54,10 +57,23 @@ public final class Amin extends UnaryAggrFunc {
   }
 
   @Override
+  protected double doProcessRow(ServerSparseDoubleLongKeyRow row) {
+    Long2DoubleOpenHashMap data = row.getIndex2ValueMap();
+
+    double amin = Math.abs(data.defaultReturnValue());
+    for (Map.Entry<Long, Double> entry: data.long2DoubleEntrySet()) {
+      amin = Math.min(amin, Math.abs(entry.getValue()));
+    }
+    return amin;
+  }
+
+  @Override
   public GetResult merge(List<PartitionGetResult> partResults) {
     double min = Double.MAX_VALUE;
     for (PartitionGetResult partResult : partResults) {
-      min = Math.min(min, ((ScalarPartitionAggrResult) partResult).result);
+      if (partResult != null) {
+        min = Math.min(min, ((ScalarPartitionAggrResult) partResult).result);
+      }
     }
 
     return new ScalarAggrResult(min);

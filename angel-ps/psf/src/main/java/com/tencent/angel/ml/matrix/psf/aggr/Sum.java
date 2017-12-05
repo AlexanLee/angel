@@ -23,9 +23,13 @@ import com.tencent.angel.ml.matrix.psf.aggr.enhance.UnaryAggrFunc;
 import com.tencent.angel.ml.matrix.psf.get.base.GetResult;
 import com.tencent.angel.ml.matrix.psf.get.base.PartitionGetResult;
 import com.tencent.angel.ps.impl.matrix.ServerDenseDoubleRow;
+import com.tencent.angel.ps.impl.matrix.ServerSparseDoubleLongKeyRow;
+import it.unimi.dsi.fastutil.longs.Long2DoubleOpenHashMap;
 
 import java.nio.DoubleBuffer;
 import java.util.List;
+import java.util.Map;
+
 /**
  * `Sum` will return sum of the `rowId` row in `matrixId` matrix.
  * Row is a Array of double, and `Sum` is \sum { row(i) }
@@ -52,10 +56,25 @@ public final class Sum extends UnaryAggrFunc {
   }
 
   @Override
+  protected double doProcessRow(ServerSparseDoubleLongKeyRow row) {
+    long entireSize = row.getEndCol() - row.getStartCol();
+
+    Long2DoubleOpenHashMap data = row.getData();
+    double asum = 0.0;
+    for (Map.Entry<Long, Double> entry: data.long2DoubleEntrySet()) {
+      asum += entry.getValue();
+    }
+    asum += data.defaultReturnValue() * (entireSize - data.size());
+    return asum;
+  }
+
+  @Override
   public GetResult merge(List<PartitionGetResult> partResults) {
     double sum = 0.0;
     for (PartitionGetResult partResult : partResults) {
-      sum += ((ScalarPartitionAggrResult) partResult).result;
+      if (partResult != null) {
+        sum += ((ScalarPartitionAggrResult) partResult).result;
+      }
     }
 
     return new ScalarAggrResult(sum);

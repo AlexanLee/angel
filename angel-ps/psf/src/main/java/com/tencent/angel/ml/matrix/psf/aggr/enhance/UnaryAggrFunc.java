@@ -17,6 +17,7 @@
 
 package com.tencent.angel.ml.matrix.psf.aggr.enhance;
 
+import com.tencent.angel.ml.matrix.psf.common.Utils;
 import com.tencent.angel.ml.matrix.psf.get.base.GetFunc;
 import com.tencent.angel.ml.matrix.psf.get.base.PartitionGetParam;
 import com.tencent.angel.ml.matrix.psf.get.base.PartitionGetResult;
@@ -24,6 +25,7 @@ import com.tencent.angel.ps.impl.PSContext;
 import com.tencent.angel.ps.impl.matrix.ServerDenseDoubleRow;
 import com.tencent.angel.ps.impl.matrix.ServerPartition;
 import com.tencent.angel.ps.impl.matrix.ServerRow;
+import com.tencent.angel.ps.impl.matrix.ServerSparseDoubleLongKeyRow;
 
 /**
  * This is abstract class of Unary Aggregate Function of POF (PS Oriented Function),
@@ -52,23 +54,26 @@ public abstract class UnaryAggrFunc extends GetFunc {
         PSContext.get().getMatrixPartitionManager()
             .getPartition(partKey.getMatrixId(), partKey.getPartKey().getPartitionId());
 
-    double result = 0.0;
     if (part != null) {
       int rowId = ((UnaryAggrParam.UnaryPartitionAggrParam) partKey).getRowId();
-      ServerRow row = part.getRow(rowId);
-      if (row != null) result = processRow(row);
+      if (Utils.withinPart(part.getPartitionKey(), new int[]{rowId})) {
+        ServerRow row = part.getRow(rowId);
+        double result = processRow(row);
+        return new ScalarPartitionAggrResult(result);
+      }
     }
-
-    return new ScalarPartitionAggrResult(result);
+    return null;
   }
 
   private double processRow(ServerRow row) {
     switch (row.getRowType()) {
       case T_DOUBLE_DENSE:
         return doProcessRow((ServerDenseDoubleRow) row);
+      case T_DOUBLE_SPARSE_LONGKEY:
+        return doProcessRow((ServerSparseDoubleLongKeyRow) row);
       default:
         throw new RuntimeException(this.getClass().getName() +
-            "currently only supports Double Dense Row");
+            "currently only supports DoubleDense and SparseDoubleLong Row");
     }
   }
 
@@ -78,5 +83,12 @@ public abstract class UnaryAggrFunc extends GetFunc {
    * @return aggregated result of each partition
    */
   protected abstract double doProcessRow(ServerDenseDoubleRow row);
+
+  /**
+   * The process function for `ServerSparseDoubleLongKeyRow`.
+   * @param row to process
+   * @return aggregated result of each partition
+   */
+  protected abstract double doProcessRow(ServerSparseDoubleLongKeyRow row);
 
 }

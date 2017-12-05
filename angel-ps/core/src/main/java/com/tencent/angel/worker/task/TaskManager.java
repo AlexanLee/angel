@@ -195,7 +195,7 @@ public class TaskManager {
       }
     }
 
-    if (indexSet != null) {
+    if (indexSet != null && meta != null) {
       int size = indexSet.size();
       int[] indexArray = new int[size];
       int index = 0;
@@ -214,7 +214,7 @@ public class TaskManager {
       int lastPos = 0;
       for (int i = 0; i < partNum; i++) {
         PartitionKey partKey = partKeyList.get(i);
-        int endCol = partKey.getEndCol();
+        long endCol = partKey.getEndCol();
         for (int j = lastPos; j < size; j++) {
           if (indexArray[j] >= endCol) {
 

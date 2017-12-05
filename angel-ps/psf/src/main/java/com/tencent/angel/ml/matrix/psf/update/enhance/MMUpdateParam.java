@@ -18,6 +18,7 @@
 package com.tencent.angel.ml.matrix.psf.update.enhance;
 
 import com.tencent.angel.PartitionKey;
+import com.tencent.angel.ml.matrix.psf.common.Utils;
 import com.tencent.angel.psagent.PSAgentContext;
 import io.netty.buffer.ByteBuf;
 
@@ -105,17 +106,18 @@ public class MMUpdateParam extends UpdateParam {
 
   @Override
   public List<PartitionUpdateParam> split() {
-    List<PartitionKey> partList =
+    List<PartitionKey> parts =
         PSAgentContext.get().getMatrixPartitionRouter().getPartitionKeyList(matrixId);
-    int size = partList.size();
+    int size = parts.size();
     List<PartitionUpdateParam> partParams = new ArrayList<PartitionUpdateParam>(size);
-    for (PartitionKey part : partList) {
-      for (int rowId : rowIds) {
-        if (rowId < part.getStartRow() || rowId >= part.getEndRow()) {
-          throw new RuntimeException("Wrong rowId!");
-        }
+    for (PartitionKey part : parts) {
+      if (Utils.withinPart(part, rowIds)) {
+        partParams.add(new MMPartitionUpdateParam(matrixId, part, rowIds, scalars));
       }
-      partParams.add(new MMPartitionUpdateParam(matrixId, part, rowIds, scalars));
+    }
+
+    if (partParams.isEmpty()) {
+      System.out.println("Rows must in same partition.");
     }
 
     return partParams;
