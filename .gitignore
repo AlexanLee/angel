@@ -8,7 +8,7 @@
 .DS_Store
 .cache
 .classpath
-.idea/
+.idea
 .idea_modules/
 .project
 .scala_dependencies
