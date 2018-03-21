@@ -22,20 +22,22 @@ import com.tencent.angel.ml.GBDT.GBDTModel._
 import com.tencent.angel.ml.conf.MLConf
 import com.tencent.angel.ml.feature.LabeledData
 import com.tencent.angel.ml.math.vector.{TIntDoubleVector, TIntVector}
+import com.tencent.angel.ml.matrix.RowType
 import com.tencent.angel.ml.model.{MLModel, PSModel}
 import com.tencent.angel.ml.predict.PredictResult
 import com.tencent.angel.ml.utils.Maths
-import com.tencent.angel.protobuf.generated.MLProtos.RowType
 import com.tencent.angel.worker.storage.{DataBlock, MemoryDataBlock}
 import com.tencent.angel.worker.task.TaskContext
 import org.apache.commons.logging.LogFactory
 import org.apache.hadoop.conf.Configuration
 
 object GBDTModel {
+
   val SKETCH_MAT: String = "gbdt.sketch"
   val GRAD_HIST_MAT_PREFIX: String = "gbdt.grad.histogram.node"
   val ACTIVE_NODE_MAT: String = "gbdt.active.nodes"
-  val FEAT_SAMPLE_MAT: String = "gbdt.feature.sample."
+  val FEAT_SAMPLE_MAT: String = "gbdt.feature.sample"
+  val FEAT_CATEGORY_MAT = "gbdt.feature.category"
   val SPLIT_FEAT_MAT: String = "gbdt.split.feature"
   val SPLIT_VALUE_MAT: String = "gbdt.split.value"
   val SPLIT_GAIN_MAT: String = "gbdt.split.gain"
@@ -61,11 +63,14 @@ class GBDTModel(conf: Configuration, _ctx: TaskContext = null) extends MLModel(c
   val maxTreeDepth = conf.getInt(MLConf.ML_GBDT_TREE_DEPTH, MLConf.DEFAULT_ML_GBDT_TREE_DEPTH)
   val splitNum = conf.getInt(MLConf.ML_GBDT_SPLIT_NUM, MLConf.DEFAULT_ML_GBDT_SPLIT_NUM)
   val featSampleRatio = conf.getFloat(MLConf.ML_GBDT_SAMPLE_RATIO, MLConf.DEFAULT_ML_GBDT_SAMPLE_RATIO)
+  val cateFeatStr = conf.get(MLConf.ML_GBDT_CATE_FEAT, MLConf.DEFAULT_ML_GBDT_CATE_FEAT)
+  val cateFeatNum = if (cateFeatStr.contains(",")) cateFeatStr.split(",").size else 1
 
   val maxTNodeNum: Int = Maths.pow(2, maxTreeDepth) - 1
 
   // # parameter server
   val psNumber = conf.getInt(AngelConf.ANGEL_PS_NUMBER, 1)
+  val workerNumber = conf.getInt(AngelConf.ANGEL_WORKERGROUP_ACTUAL_NUM, 1)
 
   // adjust feature number to ensure the parameter partition
   if (featNum % psNumber != 0) {
@@ -140,11 +145,21 @@ class GBDTModel(conf: Configuration, _ctx: TaskContext = null) extends MLModel(c
     .setOplogType("DENSE_DOUBLE")
   addPSModel(NODE_PRED_MAT, nodePred)
 
+  // Matrix 10: categorical feature
+  val featCategory = PSModel(FEAT_CATEGORY_MAT, workerNumber, cateFeatNum * splitNum, 1, cateFeatNum * splitNum)
+    .setRowType(RowType.T_DOUBLE_DENSE)
+    .setOplogType("DENSE_DOUBLE")
+    .setNeedSave(false)
+  addPSModel(FEAT_CATEGORY_MAT, featCategory)
+
   super.setSavePath(conf)
   super.setLoadPath(conf)
 
   override def predict(dataSet: DataBlock[LabeledData]): DataBlock[PredictResult] = {
+
     val predict = new MemoryDataBlock[PredictResult](-1)
+
+
 
     val splitFeatVecs: Array[TIntVector] = new Array[TIntVector](this.maxTreeNum)
     val splitValueVecs: Array[TIntDoubleVector] = new Array[TIntDoubleVector](this.maxTreeNum)
@@ -205,6 +220,7 @@ class GBDTModel(conf: Configuration, _ctx: TaskContext = null) extends MLModel(c
         if (y * pred >= 0) negTrue += 1
       }
     }
+
     LOG.info(s"Positive accuracy: ${posTrue.toDouble/posNum.toDouble}, " +
       s"negative accuracy: ${negTrue.toDouble/negNum.toDouble}")
     predict

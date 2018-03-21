@@ -21,7 +21,7 @@
 	<groupId>com.tencent.angel</groupId>
 	<artifactId>angel</artifactId>
 	<packaging>pom</packaging>
-	<version>1.3.0</version>
+	<version>1.4.0</version>
 	<name>angel</name>
 	<properties>
 		<hadoop-version>2.2.0</hadoop-version>
@@ -33,7 +33,7 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<dist.deps.scope>provided</dist.deps.scope>
 		<scalatest.version>2.2.6</scalatest.version>
-        <main.basedir>${project.basedir}</main.basedir>
+    <main.basedir>${project.basedir}</main.basedir>
 	</properties>
 
 	<modules>

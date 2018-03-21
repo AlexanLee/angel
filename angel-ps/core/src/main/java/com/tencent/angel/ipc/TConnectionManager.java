@@ -203,7 +203,7 @@ public class TConnectionManager {
      * @return Proxy.
      * @throws java.io.IOException
      */
-    VersionedProtocol getProtocol(final String hostname, final int port,
+    public VersionedProtocol getProtocol(final String hostname, final int port,
         final Class<? extends VersionedProtocol> protocolClass, final long version,
         List<String> addrList4Failover) throws IOException {
       String rsName = Addressing.createHostAndPortStr(hostname, port);

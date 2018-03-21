@@ -36,6 +36,8 @@ object MLConf {
   val DEFAULT_ML_FEATURE_NNZ = 10000
   val ML_MF_USER_OUTPUT_PATH="ml.mf.user.model.output"
   val ANGEL_PREDICT_PATH = "angel.predict.path"
+  val ML_INDEX_GET_ENABLE = "ml.index.get.enable"
+  val DEFAULT_ML_INDEX_GET_ENABLE = false
 
   // Model params
   val ML_PART_PER_SERVER = "ml.part.per.server"
@@ -54,6 +56,8 @@ object MLConf {
   val DEFAULT_ML_REG_L1 = 1.0
   val ML_REG_L2 = "ml.reg.l2"
   val DEFAULT_ML_REG_L2 = 1.0
+  val ML_REG_LOSS_TYPE = "ml.reg.loss.type"
+  val DEFAULT_ML_REG_LOSS_TYPE = "loss2"
 
   // mini-batch sgd params
   val ML_EPOCH_NUM = "ml.epoch.num"
@@ -97,6 +101,8 @@ object MLConf {
   val ANGEL_ACTION_TYPE = "actionType"
 
   // GBDT Params
+  val ML_GBDT_TASK_TYPE = "ml.gbdt.task.type"
+  val DEFAULT_ML_GBDT_TASK_TYPE = "classification"
   val ML_GBDT_TREE_NUM = "ml.gbdt.tree.num"
   val DEFAULT_ML_GBDT_TREE_NUM = 10
   val ML_GBDT_TREE_DEPTH = "ml.gbdt.tree.depth"
@@ -117,6 +123,8 @@ object MLConf {
   val DEFAULT_ML_GBDT_BATCH_NUM = 10000
   val ML_GBDT_SERVER_SPLIT = "ml.gbdt.server.split"
   val DEFAULT_ML_GBDT_SERVER_SPLIT = false
+  val ML_GBDT_CATE_FEAT = "ml.gbdt.cate.feat"
+  val DEFAULT_ML_GBDT_CATE_FEAT = "none"
 
   // FM params
   val ML_FM_LEARN_TYPE = "ml.fm.learn.type"

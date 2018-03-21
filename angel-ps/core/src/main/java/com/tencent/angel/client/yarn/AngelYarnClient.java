@@ -25,7 +25,7 @@ package com.tencent.angel.client.yarn;
 
 import com.google.protobuf.ServiceException;
 import com.tencent.angel.client.AngelClient;
-import com.tencent.angel.common.Location;
+import com.tencent.angel.common.location.Location;
 import com.tencent.angel.conf.AngelConf;
 import com.tencent.angel.exception.AngelException;
 import com.tencent.angel.ipc.TConnection;
@@ -177,6 +177,7 @@ public class AngelYarnClient extends AngelClient {
 
   @Override
   public void stop() throws AngelException{
+    super.stop();
     if (yarnClient != null) {
       try {
         yarnClient.killApplication(appId);
@@ -191,6 +192,7 @@ public class AngelYarnClient extends AngelClient {
   @Override
   public void stop(int stateCode) throws AngelException{
     LOG.info("stop the application");
+    super.stop();
     if(master != null) {
       try {
         LOG.info("master is not null, send stop command to Master, stateCode=" + stateCode);
@@ -394,6 +396,7 @@ public class AngelYarnClient extends AngelClient {
     DataOutputBuffer dob = new DataOutputBuffer();
     ts.writeTokenStorageToStream(dob);
     ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
+    dob.close();
 
     // Setup the command to run the AM
     List<String> vargs = new ArrayList<String>(8);
@@ -537,8 +540,9 @@ public class AngelYarnClient extends AngelClient {
           masterLocation = new Location(host, port);
           LOG.info("start to create rpc client to am");         
           master = connection.getMasterService(masterLocation.getIp(), masterLocation.getPort());
-          master.ping(null, PingRequest.newBuilder().build());
+          startHeartbeat();
         } catch (ServiceException e) {
+          LOG.error("Register to Master failed, ", e);
           Thread.sleep(1000);
           tryTime++;
           continue;

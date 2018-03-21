@@ -17,25 +17,22 @@
 
 package com.tencent.angel.ml.matrix.psf.get.enhance.indexed;
 
-import com.tencent.angel.ml.math.vector.SparseDoubleVector;
 import com.tencent.angel.ml.matrix.psf.get.base.*;
 import com.tencent.angel.ml.matrix.psf.get.single.GetRowResult;
-import com.tencent.angel.protobuf.generated.MLProtos;
-import com.tencent.angel.ps.impl.PSContext;
 import com.tencent.angel.ps.impl.matrix.*;
+import com.tencent.angel.psagent.PSAgentContext;
 import com.tencent.angel.psagent.matrix.ResponseType;
-import it.unimi.dsi.fastutil.ints.Int2DoubleOpenHashMap;
-import it.unimi.dsi.fastutil.longs.Long2DoubleOpenHashMap;
+import com.tencent.angel.ml.matrix.RowType;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
-import java.nio.DoubleBuffer;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Get the values of specifide index psfunc.
  */
 public class IndexGetFunc extends GetFunc {
+  private static final Log LOG = LogFactory.getLog(IndexGetFunc.class);
 
   public IndexGetFunc(IndexGetParam param) {
     super(param);
@@ -52,128 +49,87 @@ public class IndexGetFunc extends GetFunc {
    */
   @Override
   public PartitionGetResult partitionGet(PartitionGetParam partParam) {
+    long startTs = System.currentTimeMillis();
     ServerPartition part =
-        PSContext.get().getMatrixPartitionManager()
-            .getPartition(partParam.getMatrixId(), partParam.getPartKey().getPartitionId());
+        psContext.getMatrixStorageManager()
+            .getPart(partParam.getMatrixId(), partParam.getPartKey().getPartitionId());
 
+    PartitionGetResult result = null;
     if (part != null) {
       int rowId = ((IndexPartGetParam) partParam).getRowId();
-      int[] index = ((IndexPartGetParam) partParam).getIndex();
-      int paramId = ((IndexPartGetParam) partParam).getParamId();
+      int[] indexes = ((IndexPartGetParam) partParam).getIndexes();
 
       ServerRow row = part.getRow(rowId);
-      MLProtos.RowType rowType = row.getRowType();
-      double[] values = new double[index.length];
+      RowType rowType = row.getRowType();
+
       switch (rowType) {
-        case T_DOUBLE_DENSE: {
-          values = getVluesofServerDenseDoubleRow(row, index);
-          return new IndexGetResult(paramId, values);
+        case T_DOUBLE_DENSE:
+        case T_DOUBLE_SPARSE:
+        case T_DOUBLE_SPARSE_COMPONENT :{
+          result = new IndexPartGetDoubleResult(partParam.getPartKey(), ((ServerDoubleRow) row).getValues(indexes));
+          break;
         }
 
-        case T_DOUBLE_SPARSE: {
-          values = getVluesofServerSparseDoubleRow(row, index);
-          return new IndexGetResult(paramId, values);
+        case T_FLOAT_DENSE:
+        case T_FLOAT_SPARSE:
+        case T_FLOAT_SPARSE_COMPONENT: {
+          result = new IndexPartGetFloatResult(partParam.getPartKey(), ((ServerFloatRow) row).getValues(indexes));
+          break;
         }
 
-        case T_DOUBLE_SPARSE_LONGKEY: {
-          values = getVluesofServerSparseDoubleLongRow(row, index);
-          return new IndexGetResult(paramId, values);
+        case T_INT_DENSE:
+        case T_INT_SPARSE:
+        case T_INT_SPARSE_COMPONENT: {
+          result = new IndexPartGetIntResult(partParam.getPartKey(), ((ServerIntRow) row).getValues(indexes));
+          break;
         }
 
         default:
           throw new UnsupportedOperationException("Unsupport operation: update " + rowType + " to " + this.getClass().getName());
       }
     }
-    return null;
+    LOG.info("Partition get use time=" + (System.currentTimeMillis() - startTs) + " ms");
+    return result;
   }
-
-  /**
-   * Get values of specified index in a server row of a server partition.
-   * @param row server row of a partition
-   * @param index specified index
-   * @return values of specified index
-   */
-  private double[] getVluesofServerDenseDoubleRow(ServerRow row, int[] index) {
-    int startCol = (int) row.getStartCol();
-    DoubleBuffer data = ((ServerDenseDoubleRow) row).getData();
-    double[] values = new double[index.length];
-
-    for (int i = 0; i < index.length; i++) {
-      values[i] = data.get(index[i] - startCol);
-    }
-
-    return values;
-  }
-
-  private double[] getVluesofServerSparseDoubleRow(ServerRow row, int[] index) {
-    Int2DoubleOpenHashMap data = ((ServerSparseDoubleRow) row).getData();
-    double[] values = new double[index.length];
-
-    for (int i = 0; i < index.length; i++) {
-      values[i] = data.get(index[i]);
-    }
-
-    return values;
-  }
-
-  private double[] getVluesofServerSparseDoubleLongRow(ServerRow row, int[] index) {
-    Long2DoubleOpenHashMap data = ((ServerSparseDoubleLongKeyRow) row).getData();
-    double[] values = new double[index.length];
-
-    for (int i = 0; i < index.length; i++) {
-      values[i] = data.get(index[i]);
-    }
-
-    return values;
-  }
-
-
-  /**
-   * Merge all partition get result and return a sparse double vector
-   * @param partResults the partition results
-   * @return a merged sparse double vector
-   */
 
   @Override
   public GetResult merge(List<PartitionGetResult> partResults) {
-    GetParam getParam = getParam();
-    List<PartitionGetParam> partParams = getParam.split();
-    Map<Integer, PartitionGetParam> paramIdToPartGetParam = new HashMap<Integer,
-        PartitionGetParam>();
-    for (PartitionGetParam partParam: partParams) {
-      paramIdToPartGetParam.put(((IndexPartGetParam) partParam).getParamId(), partParam);
-    }
-
-    MLProtos.RowType rowType = PSContext.get().getMatrixPartitionManager()
-          .getPartition(param.getMatrixId(), ((IndexGetParam) param).getRowId())
-          .getRow(((IndexGetParam) param).getRowId()).getRowType();
-
+    long startTs = System.currentTimeMillis();
+    RowType rowType = PSAgentContext.get().getMatrixMetaManager().getMatrixMeta(param.getMatrixId()).getRowType();
+    GetRowResult result = null;
     switch (rowType) {
       case T_DOUBLE_DENSE:
       case T_DOUBLE_SPARSE:
-        return mergeSparseDoubleVector(paramIdToPartGetParam, partResults);
+        result = new GetRowResult(ResponseType.SUCCESS, ValuesCombineUtils.mergeSparseDoubleVector((IndexGetParam) param, partResults));
+        break;
+
+      case T_DOUBLE_SPARSE_COMPONENT:
+        result = new GetRowResult(ResponseType.SUCCESS, ValuesCombineUtils.mergeSparseDoubleCompVector((IndexGetParam) param, partResults));
+        break;
+
+      case T_FLOAT_DENSE:
+      case T_FLOAT_SPARSE:
+        result = new GetRowResult(ResponseType.SUCCESS, ValuesCombineUtils.mergeSparseFloatVector((IndexGetParam) param, partResults));
+        break;
+
+      case T_FLOAT_SPARSE_COMPONENT:
+        result = new GetRowResult(ResponseType.SUCCESS, ValuesCombineUtils.mergeSparseFloatCompVector((IndexGetParam) param, partResults));
+        break;
+
+      case T_INT_DENSE:
+      case T_INT_SPARSE:
+        result = new GetRowResult(ResponseType.SUCCESS, ValuesCombineUtils.mergeSparseIntVector((IndexGetParam) param, partResults));
+        break;
+
+      case T_INT_SPARSE_COMPONENT:
+        result = new GetRowResult(ResponseType.SUCCESS, ValuesCombineUtils.mergeSparseIntCompVector((IndexGetParam) param, partResults));
+        break;
 
       default:
         throw new UnsupportedOperationException("Unsupport operation: update " + rowType + " to " + this.getClass().getName());
     }
 
+    LOG.info("Merge use time=" + (System.currentTimeMillis() - startTs) + " ms");
+    return result;
   }
-
-  public GetResult mergeSparseDoubleVector(Map<Integer, PartitionGetParam> paramIdToPartGetParam,
-                                           List<PartitionGetResult> partResults) {
-
-    SparseDoubleVector vector = new SparseDoubleVector();
-    for (PartitionGetResult part: partResults) {
-      int paramId = ((IndexGetResult) part).getParamId();
-      int[] index = ((IndexPartGetParam) paramIdToPartGetParam.get(paramId)).getIndex();
-      double[] values = ((IndexGetResult) part).getValues();
-      for (int i = 0; i < index.length; i++) {
-        vector.set(index[i], values[i]);
-      }
-    }
-
-    return new GetRowResult(ResponseType.SUCCESS, vector);
-  }
-
-
 }

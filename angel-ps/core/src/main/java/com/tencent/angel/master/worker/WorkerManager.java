@@ -34,7 +34,6 @@ import com.tencent.angel.worker.task.TaskId;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.event.EventHandler;
@@ -50,7 +49,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * Global worker manager, it manages all worker groups {@link com.tencent.angel.master.worker.workergroup.AMWorkerGroup}
  * and all workers {@link com.tencent.angel.master.worker.worker.AMWorker} in the application.
  */
-public class WorkerManager extends AbstractService implements EventHandler<WorkerManagerEvent> {
+public class WorkerManager implements EventHandler<WorkerManagerEvent> {
   private static final Log LOG = LogFactory.getLog(WorkerManager.class);
 
   private final AMContext context;
@@ -103,7 +102,6 @@ public class WorkerManager extends AbstractService implements EventHandler<Worke
   private boolean isInited = false;
 
   public WorkerManager(AMContext context) {
-    super(WorkerManager.class.getName());
     this.context = context;
     
     ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
@@ -147,21 +145,6 @@ public class WorkerManager extends AbstractService implements EventHandler<Worke
     successGroups = new HashSet<WorkerGroupId>();
     killedGroups = new HashSet<WorkerGroupId>();
     failedGroups = new HashSet<WorkerGroupId>();
-  }
-
-  @Override
-  protected void serviceStart() throws Exception {
-    super.serviceStart();
-  }
-
-  @Override
-  protected void serviceInit(Configuration conf) throws Exception {
-    super.serviceInit(conf);
-  }
-
-  @Override
-  protected void serviceStop() throws Exception {
-    super.serviceStop();
   }
 
   public AMWorkerGroup getWorkGroup(WorkerId workerId) {
@@ -243,8 +226,8 @@ public class WorkerManager extends AbstractService implements EventHandler<Worke
 
   private String getDetailWorkerExitMessage() {
     StringBuilder sb = new StringBuilder();
-    sb.append("killed and failed workergroup is over tolerate ").append(tolerateFailedGroup);
-    sb.append("\n");
+    //sb.append("killed and failed workergroup is over tolerate ").append(tolerateFailedGroup);
+    sb.append("There are some Workers failed\n");
     if (!failedGroups.isEmpty()) {
       sb.append("failed workergroups:");
       for (WorkerGroupId groupId : failedGroups) {

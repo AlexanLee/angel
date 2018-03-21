@@ -55,4 +55,7 @@ public interface RpcServer {
    */
   public int getNumberOfConnections();
 
+
+  void addProtocolImpl(Class<?> protocol,Object impl);
+
 }

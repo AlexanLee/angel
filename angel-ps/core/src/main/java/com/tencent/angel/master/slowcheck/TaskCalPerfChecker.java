@@ -80,10 +80,11 @@ public class TaskCalPerfChecker extends CheckPolicy {
     }
 
     LOG.info("totalSamples = " + totalSamples + ", totalCalTimeMs = "
-      + totalCalTimeMs + ", averageRate = " + averageRate + ", slowest rate = " + averageRate * slowestDiscount);
+      + totalCalTimeMs + ", average calulate time for 10000 samples = " + averageRate
+      + ", the maximum calulate time for 10000 sample = " + averageRate / slowestDiscount);
 
     for(Map.Entry<TaskId, Double> rateEntry:taskIdToRateMap.entrySet()) {
-      if(rateEntry.getValue() < averageRate * slowestDiscount) {
+      if(averageRate < rateEntry.getValue() * slowestDiscount) {
         LOG.info("task " + rateEntry.getKey() + " rate = " + rateEntry.getValue() + " is < " + averageRate * slowestDiscount);
         AMWorker worker = workerManager.getWorker(rateEntry.getKey());
         if(worker != null) {

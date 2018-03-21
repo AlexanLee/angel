@@ -22,7 +22,6 @@ import com.tencent.angel.ml.math.TUpdate;
 import com.tencent.angel.ml.matrix.MatrixMeta;
 import com.tencent.angel.ml.matrix.MatrixOpLogType;
 import com.tencent.angel.ml.matrix.psf.update.enhance.VoidResult;
-import com.tencent.angel.protobuf.generated.MLProtos;
 import com.tencent.angel.psagent.PSAgentContext;
 import com.tencent.angel.psagent.matrix.ResponseType;
 import com.tencent.angel.psagent.matrix.transport.FutureResult;
@@ -31,6 +30,7 @@ import com.tencent.angel.psagent.task.TaskContext;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectAVLTreeMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -41,6 +41,8 @@ import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import com.tencent.angel.ml.matrix.RowType;
 
 /**
  * Matrix oplog(updates) cache.
@@ -112,19 +114,22 @@ public class MatrixOpLogCache {
    * Stop all merge/flush tasks and dispatcher
    */
   public void stop() {
-    if (stopped.getAndSet(true)) {
-      return;
-    }
-
-    workerPool.shutdownNow();
-    if (dispatcher != null) {
-      dispatcher.interrupt();
-      try {
-        dispatcher.join();
-      } catch (InterruptedException ie) {
-        LOG.warn("InterruptedException while stopping");
+    if (!stopped.getAndSet(true)) {
+      if(workerPool != null) {
+        workerPool.shutdownNow();
+        workerPool = null;
       }
-      dispatcher = null;
+
+      if (dispatcher != null) {
+        dispatcher.interrupt();
+        try {
+          dispatcher.join();
+        } catch (InterruptedException ie) {
+          LOG.warn("InterruptedException while stopping");
+        }
+        dispatcher = null;
+      }
+      return;
     }
   }
 
@@ -443,7 +448,7 @@ public class MatrixOpLogCache {
         LOG.warn("merge " + message + " is interruped");
       } catch (Throwable e) {
         LOG.fatal("merge " + message + " falied, ", e);
-        PSAgentContext.get().getPsAgent().error("merge " + message + " falied, " + e.getMessage());
+        PSAgentContext.get().getPsAgent().error("merge " + message + " falied, " + ExceptionUtils.getFullStackTrace(e));
       }
     }
   }
@@ -475,7 +480,7 @@ public class MatrixOpLogCache {
         ((FutureResult<VoidResult>) messageToFutureMap.remove(message)).set(result);
       } catch (Throwable e) {
         LOG.fatal("flush op " + message + " failed, ", e);
-        PSAgentContext.get().getPsAgent().error("flush op " + message + " falied, " + e.getMessage());
+        PSAgentContext.get().getPsAgent().error("flush op " + message + " falied, " + ExceptionUtils.getFullStackTrace(e));
       }
     }
 
@@ -507,7 +512,7 @@ public class MatrixOpLogCache {
         MatrixConf.DEFAULT_MATRIX_OPLOG_ENABLEFILTER).equalsIgnoreCase("true");
 
     if(type == null) {
-      MLProtos.RowType rowType = matrixMeta.getRowType();
+      RowType rowType = matrixMeta.getRowType();
       switch(rowType) {
         case T_DOUBLE_DENSE:
           return new DenseDoubleMatrixOpLog(matrixId, enableFilter);
@@ -568,7 +573,7 @@ public class MatrixOpLogCache {
         OpLogMessageType.MERGE_SUCCESS, message.getContext()));
   }
 
-  public void delOplog(int matrixId) {
+  public void remove(int matrixId) {
     opLogs.remove(matrixId);
   }
 }

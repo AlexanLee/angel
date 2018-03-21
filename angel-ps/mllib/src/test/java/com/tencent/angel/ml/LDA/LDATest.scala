@@ -75,12 +75,17 @@ class LDATest {
     conf.setInt(WORD_NUM, V)
     conf.setInt(TOPIC_NUM, K)
     conf.setInt(MLConf.ML_WORKER_THREAD_NUM, 1)
-    conf.setInt(MLConf.ML_EPOCH_NUM, 20)
+    conf.setInt(MLConf.ML_EPOCH_NUM, 10)
     conf.setBoolean(SAVE_DOC_TOPIC, false)
     conf.setBoolean(SAVE_WORD_TOPIC, true)
   }
 
   @Test
+  def testTrainAndPredict(): Unit = {
+    train()
+    inference()
+  }
+
   def train(): Unit = {
 
     conf.set(AngelConf.ANGEL_SAVE_MODEL_PATH, LOCAL_FS + TMP_PATH + "/out")
@@ -106,8 +111,6 @@ class LDATest {
     client.stop()
   }
 
-
-  @Test
   def inference(): Unit = {
     conf.set(AngelConf.ANGEL_ACTION_TYPE, "predict")
 

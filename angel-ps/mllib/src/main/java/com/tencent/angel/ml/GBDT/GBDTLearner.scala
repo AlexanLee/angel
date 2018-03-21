@@ -40,6 +40,7 @@ class GBDTLearner(override val ctx: TaskContext) extends MLLearner(ctx) {
   val param = new GBDTParam
 
   // 1. set training param
+  param.taskType = conf.get(MLConf.ML_GBDT_TASK_TYPE, MLConf.DEFAULT_ML_GBDT_TASK_TYPE)
   param.numFeature = conf.getInt(MLConf.ML_FEATURE_NUM, MLConf.DEFAULT_ML_FEATURE_NUM)
   param.numNonzero = conf.getInt(MLConf.ML_FEATURE_NNZ, MLConf.DEFAULT_ML_FEATURE_NNZ)
   param.numSplit = conf.getInt(MLConf.ML_GBDT_SPLIT_NUM, MLConf.DEFAULT_ML_GBDT_SPLIT_NUM)
@@ -56,6 +57,7 @@ class GBDTLearner(override val ctx: TaskContext) extends MLLearner(ctx) {
   param.gradHistNamePrefix = GBDTModel.GRAD_HIST_MAT_PREFIX
   param.activeTreeNodesName = GBDTModel.ACTIVE_NODE_MAT
   param.sampledFeaturesName = GBDTModel.FEAT_SAMPLE_MAT
+  param.cateFeatureName = GBDTModel.FEAT_CATEGORY_MAT
   param.splitFeaturesName = GBDTModel.SPLIT_FEAT_MAT
   param.splitValuesName = GBDTModel.SPLIT_VALUE_MAT
   param.splitGainsName = GBDTModel.SPLIT_GAIN_MAT
@@ -175,6 +177,7 @@ class GBDTLearner(override val ctx: TaskContext) extends MLLearner(ctx) {
       if (!nextClock && controller.phase == GBDTPhase.CREATE_SKETCH) {
         LOG.info(s"******Current phase: CREATE_SKETCH, clock[${controller.clock}]******")
         controller.createSketch
+        controller.mergeCateFeatSketch
         controller.setPhase(GBDTPhase.GET_SKETCH)
         nextClock = true
       }
