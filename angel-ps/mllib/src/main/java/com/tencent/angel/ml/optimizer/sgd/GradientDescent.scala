@@ -20,13 +20,15 @@ package com.tencent.angel.ml.optimizer.sgd
 import com.tencent.angel.exception.AngelException
 import com.tencent.angel.ml.feature.LabeledData
 import com.tencent.angel.ml.math.vector.{TDoubleVector, _}
+import com.tencent.angel.ml.matrix.psf.update.SoftThreshold
+import com.tencent.angel.ml.matrix.psf.update.enhance.UpdateFunc
 import com.tencent.angel.ml.model.PSModel
 import com.tencent.angel.ml.optimizer.sgd.loss.Loss
 import com.tencent.angel.worker.storage.DataBlock
 import org.apache.commons.logging.{Log, LogFactory}
-
 import scala.math.Numeric
 import scala.reflect.runtime.universe._
+import com.tencent.angel.worker.task.TaskContext
 
 object GradientDescent {
   private val LOG: Log = LogFactory.getLog(GradientDescent.getClass)
@@ -39,8 +41,9 @@ object GradientDescent {
                   lr: Double,
                   loss: Loss,
                   batchSize: Int,
-                  batchNum: Int): (Double, baseT) = {
-    miniBatchGD(trainData, wM, intercept, lr, loss, batchSize, batchNum, new Array[Int](0))
+                  batchNum: Int,
+                  ctx: TaskContext): (Double, baseT) = {
+    miniBatchGD(trainData, wM, intercept, lr, loss, batchSize, batchNum, new Array[Int](0), ctx)
   }
 
   def miniBatchGD[N: Numeric : TypeTag](trainData: DataBlock[LabeledData],
@@ -50,96 +53,110 @@ object GradientDescent {
                                         loss: Loss,
                                         batchSize: Int,
                                         batchNum: Int,
-                                        indexes : Array[N]): (Double, baseT) = {
+                                        indexes: Array[N],
+                                        ctx: TaskContext): (Double, baseT) = {
 
-    // Pull model from PS Server
-    val elementType = typeOf[N]
-
-    val w = if(indexes == null || indexes.length == 0) {
-      wM.getRow(0).asInstanceOf[baseT]
-    } else {
-      elementType match {
-        case t if t == typeOf[Int] => wM.getRowWithIndex(0, indexes.asInstanceOf[Array[Int]]).asInstanceOf[TIntDoubleVector]
-        case t if t == typeOf[Long] => wM.getRowWithLongIndex(0, indexes.asInstanceOf[Array[Long]]).asInstanceOf[TLongDoubleVector]
-        case _ => throw new AngelException(s"unsupported type: $elementType")
-      }
-    }
-
-    var b: Option[Double] = intercept.map(_.getRow(0).asInstanceOf[baseT].get(0))
+    var w: TDoubleVector = pullPSWeight[N](wM, indexes)
+    var b: Option[Double] = pullPSIntercept(intercept)
     var totalLoss = 0.0
-
     val taskContext = wM.getTaskContext
 
     for (batch <- 1 to batchNum) {
       val batchStartTs = System.currentTimeMillis()
 
       val grad = w match {
-        case _: DenseDoubleVector => new DenseDoubleVector(w.getDimension)
-        case _: SparseDoubleVector => new SparseDoubleVector(w.getDimension, w.asInstanceOf[TIntDoubleVector].size())
-        case _: CompSparseDoubleVector => w.asInstanceOf[CompSparseDoubleVector].cloneAndReset()
-        case _: CompSparseLongKeyDoubleVector => w.asInstanceOf[CompSparseLongKeyDoubleVector].cloneAndReset()
-        case _: SparseLongKeyDoubleVector => new SparseLongKeyDoubleVector(w.asInstanceOf[TLongDoubleVector].getLongDim, w.asInstanceOf[SparseLongKeyDoubleVector].size())
-        case _ => new SparseLongKeyDoubleVector(w.asInstanceOf[TLongDoubleVector].getLongDim, w.asInstanceOf[SparseLongKeyDoubleVector].size())
+        case _: DenseDoubleVector =>
+          new DenseDoubleVector(w.getDimension)
+        case _: SparseDoubleVector =>
+          new SparseDoubleVector(w.getDimension, w.asInstanceOf[TIntDoubleVector].size())
+        case _: CompSparseDoubleVector =>
+          w.asInstanceOf[CompSparseDoubleVector].cloneAndReset()
+        case _: CompSparseLongKeyDoubleVector =>
+          w.asInstanceOf[CompSparseLongKeyDoubleVector].cloneAndReset()
+        case _: SparseLongKeyDoubleVector =>
+          new SparseLongKeyDoubleVector(w.asInstanceOf[TLongDoubleVector].getLongDim, w.asInstanceOf[SparseLongKeyDoubleVector].size())
+        case _ =>
+          new SparseLongKeyDoubleVector(w.asInstanceOf[TLongDoubleVector].getLongDim, w.asInstanceOf[SparseLongKeyDoubleVector].size())
       }
-
-      grad.setRowId(0)
-
-      val bUpdate = new DenseDoubleVector(1)
-      bUpdate.setRowId(0)
+      grad.setMatrixId(w.getMatrixId)
+      grad.setRowId(w.getRowId)
 
       var batchLoss: Double = 0.0
       var gradScalarSum: Double = 0.0
 
-      // 统计 minibatch,有偏置的情况下，w:(w0,w1,w2,...,wn),x:(1,x1,x2,...,xn)
+      // in the case of interception，w:(w0,w1,w2,...,wn),x:(1,x1,x2,...,xn)
       for (i <- 0 until batchSize) {
         val data = trainData.loopingRead()
         val x = data.getX
         val y = data.getY
         val pre = w.dot(x) + b.getOrElse(0.0)
-        val gradScalar = -loss.grad(pre, y)    // not negative gradient
+        val gradScalar = -loss.grad(pre, y) // not negative gradient
         grad.plusBy(x, gradScalar)
         batchLoss += loss.loss(pre, y)
-        // 为偏置求的梯度
-        gradScalarSum += gradScalar
+        gradScalarSum += gradScalar // the grad of interception
       }
 
-      grad.timesBy(1.toDouble / batchSize.asInstanceOf[Double])
+      grad.timesBy(1.0 / batchSize)
       gradScalarSum /= batchSize
 
+      // compute the grad of regularization
       if (loss.isL2Reg) {
-        LOG.info("this is in l2")
+        // for l2
         L2Loss(loss, w, grad)
+
+        wM.increment(grad.timesBy(-1.0 * lr).asInstanceOf[TDoubleVector])
+        wM.syncClock()
+      } else if (loss.isL1Reg) {
+        // for l1
+        // the update of weight is on ps,x(k-1) - t * grad(x(k-1))
+        wM.increment(grad.timesBy(-1.0 * lr).asInstanceOf[TDoubleVector])
+        wM.syncClock()
+
+        val threshold = loss.getRegParam * lr
+        if (ctx.getTaskId.getIndex == 0) {
+          val softThrFun: UpdateFunc = new SoftThreshold(wM.getMatrixId(), 0, threshold)
+          // update wModel
+          wM.update(softThrFun)
+        }
+        wM.syncClock()
+      } else {
+        wM.increment(grad.timesBy(-1.0 * lr).asInstanceOf[TDoubleVector])
+        wM.syncClock()
       }
 
-      // L is (0,1)
-      if(loss.isL1Reg){
-        PGD4Grad(w, grad, loss.getRegParam, lr)
+      // update intercept
+      intercept.foreach { bv =>
+        val bUpdate = new DenseDoubleVector(1)
+        bUpdate.set(0, - gradScalarSum * lr)
+        bv.increment(0, bUpdate)
+        bv.syncClock()
       }
+
+      w = pullPSWeight[N](wM, indexes)
+      b = pullPSIntercept(intercept)
+
+      val weightSparsity = sparsity(w, wM)
+      LOG.info("the sparsity for w is:" + weightSparsity)
 
       totalLoss += batchLoss
-      w.plusBy(grad, -1.0 * lr)
-      b = b.map(bv => bv - lr * gradScalarSum)
-
-      wM.increment(grad.timesBy(-1.0 * lr).asInstanceOf[TDoubleVector])
-
-      intercept.map { bv =>
-        bUpdate.set(0, -lr * gradScalarSum)
-        bv.increment(bUpdate)
-        bv
-      }
-
       LOG.debug(s"Batch[$batch] loss = $batchLoss")
       taskContext.updateProfileCounter(batchSize, (System.currentTimeMillis() - batchStartTs).toInt)
     }
 
     //Push model update to PS Server
     totalLoss /= (batchNum * batchSize)
-    totalLoss += loss.getReg(w.asInstanceOf[TDoubleVector])
+    totalLoss += loss.getReg(w)
 
-    wM.syncClock()
-    intercept.map(_.syncClock())
+    (totalLoss, w)
+  }
 
-    (totalLoss , w)
+
+  def sparsity(w: TDoubleVector, wM: PSModel): Double = {
+    if (wM.validIndexNum > 0) {
+      w.nonZeroNumber().toDouble / wM.validIndexNum
+    } else {
+      w.sparsity()
+    }
   }
 
   def L2Loss(loss: Loss, w: baseT, grad: baseT): Unit = {
@@ -167,8 +184,9 @@ object GradientDescent {
         }
 
       case compSparse: CompSparseDoubleVector => {
-        class L2UpdateParam(lossRegParam:Double, w: baseT) extends ElemUpdateParam {
+        class L2UpdateParam(lossRegParam: Double, w: baseT) extends ElemUpdateParam {
           def getW = w
+
           def getLossRegParam = lossRegParam
         }
 
@@ -194,9 +212,10 @@ object GradientDescent {
           }
         }
 
-      case compLong : CompSparseLongKeyDoubleVector => {
-        class L2UpdateParam(lossRegParam:Double, w: baseT) extends ElemUpdateParam {
+      case compLong: CompSparseLongKeyDoubleVector => {
+        class L2UpdateParam(lossRegParam: Double, w: baseT) extends ElemUpdateParam {
           def getW = w
+
           def getLossRegParam = lossRegParam
         }
 
@@ -274,9 +293,11 @@ object GradientDescent {
         }
 
       case compSparse: CompSparseDoubleVector => {
-        class L1UpdateParam(theta:Double, L:Double, w: baseT) extends ElemUpdateParam {
+        class L1UpdateParam(theta: Double, L: Double, w: baseT) extends ElemUpdateParam {
           def getW = w
+
           def getTheta = theta
+
           def getL = L
         }
 
@@ -289,10 +310,12 @@ object GradientDescent {
         compSparse.elemUpdate(new L1Updater, new L1UpdateParam(theta, L, weight))
       }
 
-      case compLong : CompSparseLongKeyDoubleVector => {
-        class L1UpdateParam(theta:Double, L:Double, w: baseT) extends ElemUpdateParam {
+      case compLong: CompSparseLongKeyDoubleVector => {
+        class L1UpdateParam(theta: Double, L: Double, w: baseT) extends ElemUpdateParam {
           def getW = w
+
           def getTheta = theta
+
           def getL = L
         }
 
@@ -318,5 +341,37 @@ object GradientDescent {
       0
     }
     (wVal - proxVal) / L
+  }
+
+  // pull the weight model from PS
+  def pullPSWeight[N: Numeric : TypeTag](wM: PSModel, indexes: Array[N]): TDoubleVector = {
+    // Pull model from PS Server，include wM and intercept
+    val elementType = typeOf[N]
+
+    val w = if (indexes == null || indexes.length == 0) {
+      wM.getRow(0).asInstanceOf[baseT]
+    } else {
+      elementType match {
+        case t if t == typeOf[Int] => wM.getRowWithIndex(0, indexes.asInstanceOf[Array[Int]]).asInstanceOf[TIntDoubleVector]
+        case t if t == typeOf[Long] => wM.getRowWithLongIndex(0, indexes.asInstanceOf[Array[Long]]).asInstanceOf[TLongDoubleVector]
+        case _ => throw new AngelException(s"unsupported type: $elementType")
+      }
+    }
+    w
+  }
+
+  def pullPSIntercept(intercept: Option[PSModel]): Option[Double] = {
+    if (intercept.isEmpty) {
+      LOG.info("intercept is not defined!")
+      None
+    } else {
+      val biasVector = intercept.get.getRow(0)
+      val biasValue = biasVector match {
+        case bv: TDoubleVector => bv.get(0)
+        case bv: TFloatVector => bv.get(0)
+      }
+
+      Some(biasValue)
+    }
   }
 }

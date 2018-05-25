@@ -40,8 +40,7 @@ public class KmeansTest {
     PropertyConfigurator.configure("../conf/log4j.properties");
   }
 
-  @Before
-  public void setup() throws Exception {
+  @Before public void setup() throws Exception {
     try {
       String dataFmt = "libsvm";
 
@@ -63,6 +62,7 @@ public class KmeansTest {
       conf.setBoolean("mapred.mapper.new-api", true);
       conf.set(AngelConf.ANGEL_INPUTFORMAT_CLASS, CombineTextInputFormat.class.getName());
       conf.setBoolean(AngelConf.ANGEL_JOB_OUTPUT_PATH_DELETEONEXIST, true);
+      conf.setInt(AngelConf.ANGEL_PSAGENT_CACHE_SYNC_TIMEINTERVAL_MS, 100);
 
       //set angel resource parameters #worker, #task, #PS
       conf.setInt(AngelConf.ANGEL_WORKERGROUP_NUMBER, 1);
@@ -71,27 +71,26 @@ public class KmeansTest {
 
       //set Kmeans algorithm parameters #cluster #feature #epoch
       conf.set(MLConf.KMEANS_CENTER_NUM(), String.valueOf(centerNum));
-      conf.set(MLConf.ML_FEATURE_NUM(), String.valueOf(featureNum));
+      conf.set(MLConf.ML_FEATURE_INDEX_RANGE(), String.valueOf(featureNum));
       conf.set(MLConf.ML_EPOCH_NUM(), String.valueOf(epochNum));
       conf.set(MLConf.KMEANS_SAMPLE_RATIO_PERBATCH(), String.valueOf(spratio));
       conf.set(MLConf.kMEANS_C(), String.valueOf(c));
 
       // Set data format
-      conf.set(MLConf.ML_DATA_FORMAT(), dataFmt);
+      conf.set(MLConf.ML_DATA_INPUT_FORMAT(), dataFmt);
     } catch (Exception x) {
       LOG.error("setup failed ", x);
       throw x;
     }
   }
 
-  @Test
-  public void testKMeans() throws Exception {
+  @Test public void testKMeans() throws Exception {
     trainOnLocalClusterTest();
     predictOnLocalClusterTest();
   }
 
-  private void trainOnLocalClusterTest() throws Exception{
-    try{
+  private void trainOnLocalClusterTest() throws Exception {
+    try {
       // Set trainning data path
       conf.set(AngelConf.ANGEL_TRAIN_DATA_PATH, inputPath);
       // Set save model path

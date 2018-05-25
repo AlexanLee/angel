@@ -59,6 +59,14 @@ class DensePSMatrix(
   }
 
   /**
+   * Pull multi rows to local
+   */
+  def pull(rows: Array[Int]): Array[(Int, Array[Double])] = {
+    assertValid()
+    PSClient.instance().matrixOps.pull(this, rows)
+  }
+
+  /**
    * Pull a row to local from PS
    */
   def pull(rowId: Int): Array[Double] = {
@@ -99,7 +107,7 @@ object DensePSMatrix {
   }
 
   def apply(rows: Int, cols: Int, rowInBlock: Int, colInBlock: Int): DensePSMatrix = {
-    val matrixMeta = PSContext.instance().createMatrix(rows, cols, MatrixType.DENSE, rowInBlock, colInBlock)
+    val matrixMeta = PSContext.instance().createDenseMatrix(rows, cols, rowInBlock, colInBlock)
     new DensePSMatrix(matrixMeta.getId, rows, cols)
   }
 

@@ -83,7 +83,7 @@ public abstract class AngelClient implements AngelClientInterface {
 
   private static final DecimalFormat df = new DecimalFormat("#0.000000");
 
-  private final String clientId = UUID.randomUUID().toString();
+  private volatile int clientId = -1;
 
   private volatile Thread hbThread;
 
@@ -153,9 +153,9 @@ public abstract class AngelClient implements AngelClientInterface {
       LOG.error("Master has not been connected");
       return;
     }
-
+    clientId = master.getClientId(null, GetClientIdRequest.getDefaultInstance()).getClientId();
     master.clientRegister(null, ClientRegisterRequest.newBuilder().setClientId(clientId).build());
-    stopped.set(false);
+
     hbThread = new Thread(() -> {
       while(!stopped.get() && !Thread.interrupted()) {
         try {
@@ -298,13 +298,17 @@ public abstract class AngelClient implements AngelClientInterface {
     nameToMatrixMap.clear();
     isExecuteFinished = false;
     isFinished = false;
-
     if(!stopped.getAndSet(true)) {
       if(hbThread != null) {
         hbThread.interrupt();
-        hbThread = null;
+        try {
+          hbThread.join();
+        } catch (Throwable e) {
+          
+        }
       }
     }
+    stopped.set(false);
   }
 
   @Override
@@ -528,8 +532,16 @@ public abstract class AngelClient implements AngelClientInterface {
     StringBuilder sb = new StringBuilder("{");
     int size = metrics.size();
     for(int i = 0; i < size; i++) {
-      sb.append("\""+ metrics.get(i).getKey() + "\":" + df.format(Double.valueOf(metrics.get(i)
-          .getValue())));
+      Pair pair = metrics.get(i);
+      sb.append("\"");
+      sb.append(pair.getKey());
+      sb.append("\":");
+      try {
+        sb.append(df.format(Double.valueOf(pair.getValue())));
+      } catch (Exception e) {
+        sb.append(df.format(-1.0));
+        LOG.info("Cannot convert to double, maybe NaN, INF");
+      }
       if(i < size - 1) {
         sb.append(",");
       }
@@ -567,7 +579,7 @@ public abstract class AngelClient implements AngelClientInterface {
     return response;
   }
   
-  protected void createMatrices() throws InvalidParameterException, ServiceException {
+  public void createMatrices() throws InvalidParameterException, ServiceException {
     master.createMatrices(null, ProtobufUtil.buildCreateMatricesRequest(new ArrayList<MatrixContext>(nameToMatrixMap.values())));
     List<String> matrixNames = new ArrayList<>(nameToMatrixMap.keySet());
     waitForMatricesCreated(matrixNames);
@@ -599,11 +611,11 @@ public abstract class AngelClient implements AngelClientInterface {
 
     String actionType = conf.get(AngelConf.ANGEL_ACTION_TYPE, AngelConf.DEFAULT_ANGEL_ACTION_TYPE);
     RunningMode runningMode = RunningMode.valueOf(conf.get(AngelConf.ANGEL_RUNNING_MODE, AngelConf.DEFAULT_ANGEL_RUNNING_MODE));
-    String path = null;
-    if (!actionType.matches("predict")) {
-      path = conf.get(AngelConf.ANGEL_TRAIN_DATA_PATH);
-    } else {
+    String path;
+    if (actionType.matches("predict")) {
       path = conf.get(AngelConf.ANGEL_PREDICT_DATA_PATH);
+    } else {
+      path = conf.get(AngelConf.ANGEL_TRAIN_DATA_PATH);
     }
 
     if(runningMode == RunningMode.ANGEL_PS_WORKER) {
@@ -624,16 +636,22 @@ public abstract class AngelClient implements AngelClientInterface {
         AngelConf.DEFAULT_ANGEL_JOB_OUTPUT_PATH_DELETEONEXIST);
 
     String path = null;
-    if (!actionType.matches("predict")) {
+    if (actionType.matches("train") || actionType.matches("inctrain")) {
       path = conf.get(AngelConf.ANGEL_SAVE_MODEL_PATH);
-    } else {
+    } else if (actionType.matches("predict")) {
       path = conf.get(AngelConf.ANGEL_PREDICT_PATH);
+    } else if (actionType.matches("serving")) {
+      path = conf.get(AngelConf.ANGEL_SERVING_TEMP_PATH);
+    } else {
+      path = null;
     }
 
     if(path == null) {
       throw new IOException("output directory is null. you must set "
         + AngelConf.ANGEL_SAVE_MODEL_PATH + " at training mode or set "
-        + AngelConf.ANGEL_PREDICT_PATH + " at predict mode");
+        + AngelConf.ANGEL_PREDICT_PATH + " at predict mode"
+        + AngelConf.ANGEL_SERVING_TEMP_PATH + "at serving mode"
+      );
     }
     conf.set(AngelConf.ANGEL_JOB_OUTPUT_PATH, path);
 

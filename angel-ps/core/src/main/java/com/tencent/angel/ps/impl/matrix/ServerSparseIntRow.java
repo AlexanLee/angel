@@ -18,6 +18,8 @@ package com.tencent.angel.ps.impl.matrix;
 
 import com.tencent.angel.ml.matrix.RowType;
 import io.netty.buffer.ByteBuf;
+import it.unimi.dsi.fastutil.ints.Int2FloatMap;
+import it.unimi.dsi.fastutil.ints.Int2FloatOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
@@ -40,16 +42,16 @@ public class ServerSparseIntRow extends ServerIntRow {
    * @param startCol partition start column index
    * @param endCol partition end column index
    */
-  public ServerSparseIntRow(int rowId, int startCol, int endCol) {
+  public ServerSparseIntRow(int rowId, int startCol, int endCol, int estEleNum) {
     super(rowId, startCol, endCol);
-    this.data = new Int2IntOpenHashMap();
+    this.data = new Int2IntOpenHashMap(estEleNum);
   }
 
   /**
    * Create a ServerSparseIntRow
    */
   public ServerSparseIntRow() {
-    this(0, 0, 0);
+    this(0, 0, 0, 0);
   }
 
   @Override
@@ -58,21 +60,36 @@ public class ServerSparseIntRow extends ServerIntRow {
   }
 
   @Override
-  public void writeTo(DataOutputStream output) throws IOException {
-    try {
-      lock.readLock().lock();
-      super.writeTo(output);
-      output.writeInt(data.size());
-
-      ObjectIterator<Int2IntMap.Entry> iter = data.int2IntEntrySet().fastIterator();
-      Int2IntMap.Entry entry = null;
-      while (iter.hasNext()) {
-        entry = iter.next();
-        output.writeInt(entry.getIntKey());
-        output.writeInt(entry.getIntValue());
+  public void writeTo(DataOutputStream output, boolean cloneFirst) throws IOException {
+    if(cloneFirst) {
+      Int2IntOpenHashMap clonedData;
+      try {
+        lock.readLock().lock();
+        super.writeTo(output, cloneFirst);
+        clonedData = data.clone();
+      } finally {
+        lock.readLock().unlock();
       }
-    } finally {
-      lock.readLock().unlock();
+      writeTo(output, clonedData);
+    } else {
+      try {
+        lock.readLock().lock();
+        super.writeTo(output, cloneFirst);
+        writeTo(output, data);
+      } finally {
+        lock.readLock().unlock();
+      }
+    }
+  }
+
+  private void writeTo(DataOutputStream output, Int2IntOpenHashMap data) throws IOException {
+    output.writeInt(data.size());
+    ObjectIterator<Int2IntMap.Entry> iter = data.int2IntEntrySet().fastIterator();
+    Int2IntMap.Entry entry;
+    while (iter.hasNext()) {
+      entry = iter.next();
+      output.writeInt(entry.getIntKey());
+      output.writeInt(entry.getIntValue());
     }
   }
 
@@ -101,17 +118,17 @@ public class ServerSparseIntRow extends ServerIntRow {
   }
 
   @Override
-  public void update(RowType rowType, ByteBuf buf, int size) {
+  public void update(RowType rowType, ByteBuf buf) {
+    tryToLockWrite();
     try {
-      lock.writeLock().lock();
       switch (rowType) {
         case T_INT_SPARSE:
         case T_INT_SPARSE_COMPONENT:
-          updateIntSparse(buf, size);
+          updateIntSparse(buf);
           break;
 
         case T_INT_DENSE:
-          updateIntDense(buf, size);
+          updateIntDense(buf);
           break;
 
         default:
@@ -120,7 +137,7 @@ public class ServerSparseIntRow extends ServerIntRow {
 
       updateRowVersion();
     } finally {
-      lock.writeLock().unlock();
+      unlockWrite();
     }
   }
 
@@ -132,14 +149,16 @@ public class ServerSparseIntRow extends ServerIntRow {
     }
   }
 
-  private void updateIntDense(ByteBuf buf, int size) {
+  private void updateIntDense(ByteBuf buf) {
+    int size = buf.readInt();
     resizeHashMap(size);
     for (int i = 0; i < size; i++) {
       data.addTo(i, buf.readInt());
     }
   }
 
-  private void updateIntSparse(ByteBuf buf, int size) {
+  private void updateIntSparse(ByteBuf buf) {
+    int size = buf.readInt();
     resizeHashMap(size);
     for (int i = 0; i < size; i++) {
       data.addTo(buf.readInt(), buf.readInt());
@@ -158,7 +177,7 @@ public class ServerSparseIntRow extends ServerIntRow {
       buf.writeInt(data.size());
 
       ObjectIterator<Int2IntMap.Entry> iter = data.int2IntEntrySet().fastIterator();
-      Int2IntMap.Entry entry = null;
+      Int2IntMap.Entry entry;
       while (iter.hasNext()) {
         entry = iter.next();
         buf.writeInt(entry.getIntKey());

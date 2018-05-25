@@ -39,8 +39,8 @@ public class Fill extends MMUpdateFunc {
 
   @Override
   protected void doUpdate(ServerDenseDoubleRow[] rows, double[] values) {
+    rows[0].tryToLockWrite();
     try {
-      rows[0].getLock().writeLock().lock();
       DoubleBuffer data = rows[0].getData();
       double value = values[0];
       int size = rows[0].size();
@@ -48,14 +48,19 @@ public class Fill extends MMUpdateFunc {
         data.put(i, value);
       }
     } finally {
-      rows[0].getLock().writeLock().unlock();
+      rows[0].unlockWrite();
     }
   }
 
   @Override
   protected void doUpdate(ServerSparseDoubleLongKeyRow[] rows, double[] values) {
-    Long2DoubleOpenHashMap data = new Long2DoubleOpenHashMap();
-    data.defaultReturnValue(values[0]);
-    rows[0].setIndex2ValueMap(data);
+    rows[0].tryToLockWrite();
+    try {
+      Long2DoubleOpenHashMap data = rows[0].getIndex2ValueMap();
+      data.clear();
+      data.defaultReturnValue(values[0]);
+    } finally {
+      rows[0].unlockWrite();
+    }
   }
 }

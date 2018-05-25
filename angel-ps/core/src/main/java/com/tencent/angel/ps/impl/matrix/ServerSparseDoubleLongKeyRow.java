@@ -45,16 +45,16 @@ public class ServerSparseDoubleLongKeyRow extends ServerLongKeyRow{
    * @param startCol vector partition start position
    * @param endCol vector partition end position
    */
-  public ServerSparseDoubleLongKeyRow(int rowId, long startCol, long endCol) {
+  public ServerSparseDoubleLongKeyRow(int rowId, long startCol, long endCol, int estEleNum) {
     super(rowId, startCol, endCol);
-    index2ValueMap = new Long2DoubleOpenHashMap();
+    index2ValueMap = new Long2DoubleOpenHashMap(estEleNum);
   }
 
   /**
    * Create a ServerSparseDoubleLongKeyRow
    */
   public ServerSparseDoubleLongKeyRow() {
-    this(0, 0, 0);
+    this(0, 0, 0, 0);
   }
 
   @Override public RowType getRowType() {
@@ -78,27 +78,64 @@ public class ServerSparseDoubleLongKeyRow extends ServerLongKeyRow{
     }
   }
 
+  /**
+   * Get the default value for non-exist index
+   * @return the default value for non-exist index
+   */
+  public double getDefaultValue() {
+    return index2ValueMap.defaultReturnValue();
+  }
+
+  /**
+   * Set the default value for non-exist index
+   * @param value the default value for non-exist index
+   */
+  public void setDefaultValue(double value) {
+    index2ValueMap.defaultReturnValue(value);
+  }
+
   public void clear() {
     try {
       lock.writeLock().lock();
       index2ValueMap.clear();
+      setDefaultValue(0.0);
     } finally {
       lock.writeLock().unlock();
     }
   }
 
   @Override
-  public void writeTo(DataOutputStream output) throws IOException {
-    try {
-      lock.readLock().lock();
-      super.writeTo(output);
-      output.writeInt(index2ValueMap.size());
-      for (Long2DoubleMap.Entry entry : index2ValueMap.long2DoubleEntrySet()) {
-        output.writeLong(entry.getLongKey());
-        output.writeDouble(entry.getDoubleValue());
+  public void writeTo(DataOutputStream output, boolean cloneFirst) throws IOException {
+    if(cloneFirst) {
+      Long2DoubleOpenHashMap clonedData;
+      try {
+        lock.readLock().lock();
+        super.writeTo(output, cloneFirst);
+        clonedData = index2ValueMap.clone();
+      } finally {
+        lock.readLock().unlock();
       }
-    } finally {
-      lock.readLock().unlock();
+      writeTo(output, clonedData);
+    } else {
+      try {
+        lock.readLock().lock();
+        super.writeTo(output, cloneFirst);
+        //output.writeDouble(getDefaultValue());
+        writeTo(output, index2ValueMap);
+      } finally {
+        lock.readLock().unlock();
+      }
+    }
+  }
+
+  private void writeTo(DataOutputStream output, Long2DoubleOpenHashMap data) throws IOException {
+    output.writeInt(data.size());
+    ObjectIterator<Long2DoubleMap.Entry> iter = data.long2DoubleEntrySet().fastIterator();
+    Long2DoubleMap.Entry entry;
+    while(iter.hasNext()) {
+      entry = iter.next();
+      output.writeLong(entry.getLongKey());
+      output.writeDouble(entry.getDoubleValue());
     }
   }
 
@@ -107,10 +144,13 @@ public class ServerSparseDoubleLongKeyRow extends ServerLongKeyRow{
     try {
       lock.writeLock().lock();
       super.readFrom(input);
+      double defaultVal = input.readDouble();
       int nnz = input.readInt();
       if(index2ValueMap.size() < nnz) {
         index2ValueMap = new Long2DoubleOpenHashMap(nnz);
       }
+      setDefaultValue(defaultVal);
+
       for (int i = 0; i < nnz; i++) {
         index2ValueMap.addTo(input.readLong(), input.readDouble());
       }
@@ -130,12 +170,12 @@ public class ServerSparseDoubleLongKeyRow extends ServerLongKeyRow{
   }
 
   @Override
-  public void update(RowType rowType, ByteBuf buf, int size) {
+  public void update(RowType rowType, ByteBuf buf) {
+    tryToLockWrite();
     try {
-      lock.writeLock().lock();
       switch (rowType) {
         case T_DOUBLE_SPARSE_LONGKEY:
-          updateDoubleSparse(buf, size);
+          updateDoubleSparse(buf);
           break;
 
         default:
@@ -144,7 +184,7 @@ public class ServerSparseDoubleLongKeyRow extends ServerLongKeyRow{
 
       updateRowVersion();
     } finally {
-      lock.writeLock().unlock();
+      unlockWrite();
     }
   }
 
@@ -152,12 +192,16 @@ public class ServerSparseDoubleLongKeyRow extends ServerLongKeyRow{
     if(index2ValueMap.size() < size) {
       Long2DoubleOpenHashMap oldMap = index2ValueMap;
       index2ValueMap = new Long2DoubleOpenHashMap(size);
+      setDefaultValue(oldMap.defaultReturnValue());
       index2ValueMap.putAll(oldMap);
     }
   }
 
-  private void updateDoubleSparse(ByteBuf buf, int size) {
+  private void updateDoubleSparse(ByteBuf buf) {
+    double defaultValue = buf.readDouble();
+    int size = buf.readInt();
     resizeHashMap(size);
+    setDefaultValue(getDefaultValue() + defaultValue);
     for (int i = 0; i < size; i++) {
       index2ValueMap.addTo(buf.readLong(), buf.readDouble());
     }
@@ -172,10 +216,11 @@ public class ServerSparseDoubleLongKeyRow extends ServerLongKeyRow{
     try {
       lock.readLock().lock();
       super.serialize(buf);
+      buf.writeDouble(getDefaultValue());
       buf.writeInt(index2ValueMap.size());
 
       ObjectIterator<Long2DoubleMap.Entry> iter = index2ValueMap.long2DoubleEntrySet().fastIterator();
-      Long2DoubleMap.Entry entry = null;
+      Long2DoubleMap.Entry entry;
       while (iter.hasNext()) {
         entry = iter.next();
         buf.writeLong(entry.getLongKey());
@@ -191,8 +236,10 @@ public class ServerSparseDoubleLongKeyRow extends ServerLongKeyRow{
     try {
       lock.writeLock().lock();
       super.deserialize(buf);
+      double defaultVal = buf.readDouble();
       int elemNum = buf.readInt();
       index2ValueMap = new Long2DoubleOpenHashMap(elemNum);
+      setDefaultValue(defaultVal);
       for (int i = 0; i < elemNum; i++) {
         index2ValueMap.put(buf.readLong(), buf.readDouble());
       }
@@ -205,7 +252,7 @@ public class ServerSparseDoubleLongKeyRow extends ServerLongKeyRow{
   public int bufferLen() {
     try {
       lock.readLock().lock();
-      return super.bufferLen() + 4 + index2ValueMap.size() * 16;
+      return super.bufferLen() + 4 + 8 + index2ValueMap.size() * 16;
     } finally {
       lock.readLock().unlock();
     }
@@ -215,6 +262,7 @@ public class ServerSparseDoubleLongKeyRow extends ServerLongKeyRow{
     try {
       lock.writeLock().lock();
       index2ValueMap.clear();
+      index2ValueMap.defaultReturnValue(0.0);
     } finally {
       lock.writeLock().unlock();
     }
@@ -230,6 +278,7 @@ public class ServerSparseDoubleLongKeyRow extends ServerLongKeyRow{
       for (Map.Entry<Long, Double> entry: index2ValueMap.long2DoubleEntrySet()) {
         index2ValueMap.addTo(entry.getKey(), entry.getValue());
       }
+      index2ValueMap.defaultReturnValue(index2ValueMap.defaultReturnValue() + getDefaultValue());
     } finally {
       lock.writeLock().unlock();
     }
@@ -280,6 +329,7 @@ public class ServerSparseDoubleLongKeyRow extends ServerLongKeyRow{
     try {
       lock.writeLock().lock();
       resizeHashMap(size);
+      setDefaultValue(buf.readDouble());
       for (int i = 0; i < size; i++) {
         index2ValueMap.addTo(buf.readLong(), buf.readDouble());
       }
@@ -296,6 +346,7 @@ public class ServerSparseDoubleLongKeyRow extends ServerLongKeyRow{
     try {
       lock.readLock().lock();
       other.putAll(index2ValueMap);
+      setDefaultValue(other.defaultReturnValue() + getDefaultValue());
     } finally {
       lock.readLock().unlock();
     }

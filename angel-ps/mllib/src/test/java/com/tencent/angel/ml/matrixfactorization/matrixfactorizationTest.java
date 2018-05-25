@@ -39,8 +39,7 @@ public class matrixfactorizationTest {
     PropertyConfigurator.configure("../conf/log4j.properties");
   }
 
-  @Test
-  public void testMF() throws Exception {
+  @Test public void testMF() throws Exception {
     try {
       String inputPath = "./src/test/data/recommendation/MovieLensDataSet";
 
@@ -50,6 +49,7 @@ public class matrixfactorizationTest {
       conf.setBoolean("mapred.mapper.new-api", true);
       conf.set(AngelConf.ANGEL_INPUTFORMAT_CLASS, CombineTextInputFormat.class.getName());
       conf.setBoolean(AngelConf.ANGEL_JOB_OUTPUT_PATH_DELETEONEXIST, true);
+      conf.setInt(AngelConf.ANGEL_PSAGENT_CACHE_SYNC_TIMEINTERVAL_MS, 100);
 
       //set angel resource parameters #worker, #task, #PS
       conf.setInt(AngelConf.ANGEL_WORKERGROUP_NUMBER, 1);
@@ -63,7 +63,7 @@ public class matrixfactorizationTest {
       conf.set(AngelConf.ANGEL_TRAIN_DATA_PATH, inputPath);
       conf.set(AngelConf.ANGEL_SAVE_MODEL_PATH, LOCAL_FS + TMP_PATH + "/model");
       conf.set(AngelConf.ANGEL_LOG_PATH, LOCAL_FS + TMP_PATH + "/Log/log");
-      conf.set(MLConf.ML_MF_USER_OUTPUT_PATH(), LOCAL_FS + TMP_PATH + "/usermodel");
+      conf.set(MLConf.ML_MF_USER_MODEL_OUTPUT_PATH(), LOCAL_FS + TMP_PATH + "/usermodel");
       // Set actionType train
       conf.set(AngelConf.ANGEL_ACTION_TYPE, MLConf.ANGEL_ML_TRAIN());
 

@@ -28,12 +28,12 @@ import com.tencent.angel.worker.task.TaskContext
 import org.apache.commons.logging.LogFactory
 import org.apache.hadoop.conf.Configuration
 
-object SVMModel{
+object SVMModel {
   def apply(conf: Configuration) = {
     new SVMModel(conf)
   }
 
-  def apply(ctx:TaskContext, conf: Configuration) = {
+  def apply(ctx: TaskContext, conf: Configuration) = {
     new SVMModel(conf, ctx)
   }
 }
@@ -44,8 +44,9 @@ class SVMModel(conf: Configuration, _ctx: TaskContext = null) extends MLModel(co
   var LOG = LogFactory.getLog(classOf[SVMModel])
 
   val SVM_WEIGHT_MAT = "svm.weight.mat"
-  val feaNum = conf.getInt(MLConf.ML_FEATURE_NUM, MLConf.DEFAULT_ML_FEATURE_NUM)
-  val weight = new PSModel(SVM_WEIGHT_MAT, 1, feaNum).setAverage(true).setRowType(RowType.T_DOUBLE_DENSE)
+  val indexRange: Long = conf.getLong(MLConf.ML_FEATURE_INDEX_RANGE, MLConf.DEFAULT_ML_FEATURE_INDEX_RANGE)
+  val modelSize: Long = conf.getLong(MLConf.ML_MODEL_SIZE, indexRange)
+  val weight = new PSModel(SVM_WEIGHT_MAT, 1, indexRange, -1, -1, modelSize).setAverage(true).setRowType(RowType.T_DOUBLE_DENSE)
 
   addPSModel(SVM_WEIGHT_MAT, weight)
 
@@ -73,7 +74,7 @@ class SVMModel(conf: Configuration, _ctx: TaskContext = null) extends MLModel(co
 }
 
 class SVMPredictResult(id: Double, pre: Double) extends PredictResult {
-  override def getText():String = {
+  override def getText(): String = {
     (id + separator + format.format(pre))
   }
 }

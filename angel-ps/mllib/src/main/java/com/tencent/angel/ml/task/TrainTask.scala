@@ -16,15 +16,16 @@
 package com.tencent.angel.ml.task
 
 import com.tencent.angel.ml.feature.LabeledData
+import com.tencent.angel.ml.utils.DataParser
 import com.tencent.angel.worker.task.{BaseTask, TaskContext}
 
 /**
   * The type labeled base task.
   */
 abstract class TrainTask[KEYIN, VALUEIN](taskContext: TaskContext) extends BaseTask[KEYIN, VALUEIN, LabeledData](taskContext) {
+  protected val dataParser = DataParser(conf)
 
-
-  final def run(taskContext: TaskContext) ={
+  final def run(taskContext: TaskContext) = {
     this.train(taskContext)
   }
 

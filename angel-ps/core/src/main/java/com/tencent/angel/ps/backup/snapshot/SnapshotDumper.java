@@ -20,6 +20,7 @@ import com.google.protobuf.ServiceException;
 import com.tencent.angel.RunningMode;
 import com.tencent.angel.conf.AngelConf;
 import com.tencent.angel.ml.matrix.MatrixMeta;
+import com.tencent.angel.ml.matrix.transport.ServerState;
 import com.tencent.angel.model.output.format.ModelFilesConstent;
 import com.tencent.angel.ps.client.MasterClient;
 import com.tencent.angel.ps.impl.PSContext;
@@ -124,6 +125,9 @@ public class SnapshotDumper {
           Thread.sleep(backupIntervalMs);
           try {
             LOG.info("to writeSnapshots");
+            while(context.getRunningContext().getState() == ServerState.BUSY) {
+              Thread.sleep(5000);
+            }
             writeSnapshots();
           } catch (Exception ioe) {
             LOG.error("write snapshots error: ", ioe);
@@ -162,7 +166,7 @@ public class SnapshotDumper {
       if(fs.exists(tmpPath)) {
         fs.delete(tmpPath, true);
       }
-      context.getMatrixStorageManager().save(filter(matrixIds), tmpPath);
+      context.getMatrixStorageManager().save(filter(matrixIds), tmpPath, true);
       HdfsUtil.rename(tmpPath, baseDirPath, fs);
     }
   }

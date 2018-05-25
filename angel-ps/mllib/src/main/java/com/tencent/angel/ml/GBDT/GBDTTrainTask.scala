@@ -27,21 +27,19 @@ import com.tencent.angel.worker.task.TaskContext
 import org.apache.commons.logging.LogFactory
 import org.apache.hadoop.io.{LongWritable, Text}
 
-class GBDTTrainTask (val ctx: TaskContext) extends TrainTask[LongWritable, Text](ctx) {
-
+class GBDTTrainTask(val ctx: TaskContext) extends TrainTask[LongWritable, Text](ctx) {
   private val LOG = LogFactory.getLog(classOf[GBDTTrainTask])
 
-  private val feaNum = conf.getInt(MLConf.ML_FEATURE_NUM, MLConf.DEFAULT_ML_FEATURE_NUM)
-  private val dataFormat = conf.get(MLConf.ML_DATA_FORMAT, "libsvm")
-  private val validRatio = conf.getDouble(MLConf.ML_VALIDATE_RATIO, 0.05)
+  private val indexRange: Long = conf.getLong(MLConf.ML_FEATURE_INDEX_RANGE, MLConf.DEFAULT_ML_FEATURE_INDEX_RANGE)
+  private val validRatio = conf.getDouble(MLConf.ML_VALIDATE_RATIO, MLConf.DEFAULT_ML_VALIDATE_RATIO)
 
   // validation data storage
   var validDataStorage = new MemoryDataBlock[LabeledData](-1)
 
-  private val dataParser = DataParser(dataFormat, feaNum, true)
+  override val dataParser = DataParser(conf)
 
   /**
-    * @param ctx: task context
+    * @param ctx : task context
     */
   @throws[Exception]
   def train(ctx: TaskContext) {

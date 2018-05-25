@@ -38,7 +38,6 @@ import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -155,11 +154,6 @@ public class MatrixClientAdapter {
     LOG.debug("start to getRow request, matrix=" + matrixId + ", rowIndex=" + rowIndex + ", clock="
       + clock);
     long startTs = System.currentTimeMillis();
-    // Wait until the clock value of this row is greater than or equal to the value
-    PSAgentContext.get().getConsistencyController().waitForClock(matrixId, rowIndex, clock);
-    LOG.debug("getRow wait clock time=" + (System.currentTimeMillis() - startTs));
-
-    startTs = System.currentTimeMillis();
     // Get partitions for this row
     List<PartitionKey> partList =
       PSAgentContext.get().getMatrixMetaManager().getPartitions(matrixId, rowIndex);
@@ -261,8 +255,6 @@ public class MatrixClientAdapter {
       new FlushRequest(taskContext.getMatrixClock(matrixId), taskContext.getIndex(), matrixId,
         matrixOpLog, updateClock);
 
-    LOG.debug(
-      "start to flush update for matrix=" + matrixId + ", taskIndex=" + taskContext.getIndex());
     long startTs = System.currentTimeMillis();
     // Split the matrix oplog according to the matrix partitions
     if (matrixOpLog != null) {
@@ -458,11 +450,22 @@ public class MatrixClientAdapter {
           checkTime++;
         }
       } catch (InterruptedException ie) {
-        LOG.info("interupted");
-      } catch (Throwable e) {
+        if(stopped.get() || Thread.interrupted()) {
+          LOG.info("MergeDispatcher is interrupted");
+        }
+      } catch (Exception e) {
         LOG.fatal("merge dispatcher error ", e);
-        PSAgentContext.get().getPsAgent().error("merge dispatcher error " + ExceptionUtils.getFullStackTrace(e));
+        PSAgentContext.get().getPsAgent().error("merge dispatcher error " + e.getMessage());
       }
+    }
+  }
+
+  private void clean() {
+    Iterator<Entry<UserRequest, PartitionResponseCache>> iter =
+      requestToResponseMap.entrySet().iterator();
+    while (iter.hasNext()) {
+      Entry<UserRequest, PartitionResponseCache> entry = iter.next();
+
     }
   }
 
@@ -485,9 +488,9 @@ public class MatrixClientAdapter {
           .combineRowSplitsPipeline(pipelineCache, request.getMatrixId(), request.getRowIndex());
         vector.setMatrixId(request.getMatrixId());
         pipelineCache.setMergedResult(vector);
-      } catch (Throwable x) {
+      } catch (Exception x) {
         LOG.fatal("merge row failed ", x);
-        PSAgentContext.get().getPsAgent().error("merge row splits failed " + ExceptionUtils.getFullStackTrace(x));
+        PSAgentContext.get().getPsAgent().error("merge row splits failed " + x.getMessage());
       }
     }
 
@@ -524,9 +527,9 @@ public class MatrixClientAdapter {
         vector = RowSplitCombineUtils
           .combineServerRowSplits(splits, request.getIndex().getMatrixId(), rowIndex);
         return vector;
-      } catch (Throwable x) {
+      } catch (Exception x) {
         LOG.fatal("merge row failed ", x);
-        PSAgentContext.get().getPsAgent().error("merge row splits failed " + ExceptionUtils.getFullStackTrace(x));
+        PSAgentContext.get().getPsAgent().error("merge row splits failed " + x.getMessage());
       }
 
       return vector;

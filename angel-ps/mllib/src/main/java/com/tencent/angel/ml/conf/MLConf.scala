@@ -17,6 +17,8 @@
 
 package com.tencent.angel.ml.conf
 
+import com.tencent.angel.ml.matrix.RowType
+
 object MLConf {
 
   // The Train action means to learn a model while Predict action uses the model to predict beyond unobserved samples.
@@ -25,90 +27,155 @@ object MLConf {
   val ANGEL_ML_INC_TRAIN = "inctrain"
 
   // Data params
-  val ML_DATA_FORMAT = "ml.data.type"
-  val DEFAULT_ML_DATAFORMAT = "dummy"
-  val ML_VALIDATE_RATIO = "ml.validate.ratio"
+  val ML_DATA_INPUT_FORMAT = "ml.data.type"
+  val DEFAULT_ML_DATA_FORMAT = "dummy"
+  val ML_DATA_SPLITOR = "ml.data.splitor"
+  val DEFAULT_ML_DATA_SPLITOR = " "
+  val ML_DATA_IS_NEGY = "ml.data.is.negy"
+  val DEFAULT_ML_DATA_IS_NEGY = true
+  val ML_DATA_HAS_LABEL = "ml.data.has.label"
+  val DEFAULT_ML_DATA_HAS_LABEL = true
+  val ML_DATA_IS_CLASSIFICATION = "ml.data.is.classification"
+  val DEFAULT_ML_DATA_IS_CLASSIFICATION = true
+  val ML_VALIDATE_RATIO = "ml.data.validate.ratio"
   val DEFAULT_ML_VALIDATE_RATIO = 0.05
-  val ML_FEATURE_NUM = "ml.feature.num"
-  val DEFAULT_ML_FEATURE_NUM = 10000
-  val ANGEL_FEATURE_CONFIG = "ml.feature.conf"
-  val ML_FEATURE_NNZ = "ml.feature.nnz"
-  val DEFAULT_ML_FEATURE_NNZ = 10000
-  val ML_MF_USER_OUTPUT_PATH="ml.mf.user.model.output"
-  val ANGEL_PREDICT_PATH = "angel.predict.path"
-  val ML_INDEX_GET_ENABLE = "ml.index.get.enable"
-  val DEFAULT_ML_INDEX_GET_ENABLE = false
+  val ML_FEATURE_INDEX_RANGE = "ml.feature.index.range"
+  val DEFAULT_ML_FEATURE_INDEX_RANGE = -1
+  val ML_PULL_WITH_INDEX_ENABLE = "ml.pull.with.index.enable"
+  val DEFAULT_ML_PULL_WITH_INDEX_ENABLE = false
 
-  // Model params
-  val ML_PART_PER_SERVER = "ml.part.per.server"
-  val DEFAULT_ML_PART_PER_SERVER = 5
 
   // Worker params
-  val ML_WORKER_THREAD_NUM = "ml.worker.thread.num"
-  val DEFAULT_ML_WORKER_THREAD_NUM = 1
+  val ANGEL_WORKER_THREAD_NUM = "angel.worker.thread.num"
+  val DEFAULT_ANGEL_WORKER_THREAD_NUM = 1
 
   // network param
-  val ML_COMPRESS_BYTES = "ml.compress.bytes"
-  val DEFAULT_ML_COMPRESS_BYTES = 8
+  val ANGEL_COMPRESS_BYTES = "angel.compress.bytes"
+  val DEFAULT_ANGEL_COMPRESS_BYTES = 8
 
-  // Regularization params
-  val ML_REG_L1 = "ml.reg.l1"
-  val DEFAULT_ML_REG_L1 = 1.0
-  val ML_REG_L2 = "ml.reg.l2"
-  val DEFAULT_ML_REG_L2 = 1.0
-  val ML_REG_LOSS_TYPE = "ml.reg.loss.type"
-  val DEFAULT_ML_REG_LOSS_TYPE = "loss2"
+  // Model params
+  val ML_MODEL_SIZE = "ml.model.size"
+  val DEFAULT_ML_MODEL_SIZE = -1
+  val ML_MODEL_TYPE = "ml.model.type"
+  val DEFAULT_ML_MODEL_TYPE = RowType.T_DOUBLE_DENSE.toString
+  val ML_MODEL_PART_PER_SERVER = "ml.model.part.per.server"
+  val DEFAULT_ML_MODEL_PART_PER_SERVER = 5
+  val ML_MODEL_CONVERT_THREAD_COUNT = "ml.model.convert.thread.count"
+  val DEFAULT_ML_MODEL_CONVERT_THREAD_COUNT = 1
+  val ML_MODEL_NAME = "ml.model.name"
 
   // mini-batch sgd params
+  val ML_OPT_METHOD = "ml.opt.method"
+  val DEFAULT_ML_OPT_METHOD = "MiniBatchSGD"
   val ML_EPOCH_NUM = "ml.epoch.num"
-  val DEFAULT_ML_EPOCH_NUM = 50
-  val ML_SGD_BATCH_NUM = "ml.sgd.batch.num"
-  val DEFAULT_ML_SGD_BATCH_NUM=10
-  val ML_BATCH_SAMPLE_Ratio = "ml.batch.sample.ratio"
-  val DEFAULT_ML_BATCH_SAMPLE_Ratio = 1.0
+  val DEFAULT_ML_EPOCH_NUM = 10
+  val ML_BATCH_SAMPLE_RATIO = "ml.batch.sample.ratio"
+  val DEFAULT_ML_BATCH_SAMPLE_RATIO = 1.0
   val ML_LEARN_RATE = "ml.learn.rate"
   val DEFAULT_ML_LEAR_RATE = 1.0
   val ML_LEARN_DECAY = "ml.learn.decay"
   val DEFAULT_ML_LEARN_DECAY = 0.5
+  val ML_NUM_UPDATE_PER_EPOCH = "ml.num.update.per.epoch"
+  val DEFAULT_ML_NUM_UPDATE_PER_EPOCH = 10
+  val ML_POSITIVE_SAMPLE_WEIGHT = "ml.positive.sample.weight"
+  val DEFAULT_ML_POSITIVE_SAMPLE_WEIGHT = 1.0
+  val ML_NEGATIVE_SAMPLE_WEIGHT = "ml.negative.sample.weight"
+  val DEFAULT_ML_NEGATIVE_SAMPLE_WEIGHT = 1.0
+  val ML_MINIBATCH_SIZE = "ml.minibatch.size"
+  val DEFAULT_ML_MINIBATCH_SIZE = 128
+  val ML_LEARN_RATE_BOUND = "ml.learn.rate.bound"
+  val DEFAULT_ML_LEARN_RATE_BOUND = 5
+
+  // Adamm params
+  val ML_OPT_ADAMM_RHO = "ml.opt.adamm.rho"
+  val DEFAULT_ML_OPT_ADAMM_RHO = 0.9
+  val ML_OPT_ADAMM_PHI = "ml.opt.adamm.phi"
+  val DEFAULT_ML_OPT_ADAMM_PHI = 0.99
+
+  // Momentum params
+  val ML_OPT_MOMENTUM_RHO = "ml.opt.momentum.rho"
+  val DEFAULT_ML_OPT_MOMENTUM_RHO = 0.9
+
+  // RMSProp params
+  val ML_OPT_RMSPROP_RHO = "ml.opt.rmsprop.rho"
+  val DEFAULT_ML_OPT_RMSPROP_RHO = 0.9
+
+  // Adadelta params
+  val ML_OPT_ADADELTA_RHO = "ml.opt.adadelta.rho"
+  val DEFAULT_ML_OPT_ADADELTA_RHO = 0.95
 
   // Logistic Regression param
+  val ML_LR_REG_L1 = "ml.lr.reg.l1"
+  val DEFAULT_ML_LR_REG_L1 = 0.0
+  val ML_LR_REG_L2 = "ml.lr.reg.l2"
+  val DEFAULT_ML_LR_REG_L2 = 0.0
+  val ML_REG_LOSS_TYPE = "ml.reg.loss.type"
+  val DEFAULT_ML_REG_LOSS_TYPE = "loss2"
   val LR_USE_INTERCEPT = "ml.lr.use.intercept"
   val DEFAULT_LR_USE_INTERCEPT = false
-  val LR_MODEL_TYPE = "ml.lr.model.type"
+
+  // Factorization machine M params
+  val ML_FM_REG_L1_W = "ml.fm.reg.l1.w"
+  val DEFAULT_ML_FM_REG_L1_W = 0.0
+  val ML_FM_REG_L1_V = "ml.fm.reg.l1.v"
+  val DEFAULT_ML_FM_REG_L1_V = 0.0
+  val ML_FM_REG_L2_W = "ml.fm.reg.l2.w"
+  val DEFAULT_ML_FM_REG_L2_W = 0.0
+  val ML_FM_REG_L2_V = "ml.fm.reg.l2.v"
+  val DEFAULT_ML_FM_REG_L2_V = 0.0
+  val ML_FM_LEARN_TYPE = "ml.fm.learn.type"
+  val DEFAULT_ML_FM_LEARN_TYPE = "r"
+  val ML_FM_RANK = "ml.fm.rank"
+  val DEFAULT_ML_FM_RANK = 10
+  val ML_FM_V_STDDEV = "ml.fm.v.stddev"
+  val DEFAULT_ML_FM_V_INIT = 0.1
+
+  // MLR parameters
+  val ML_MLR_RANK = "ml.mlr.rank"
+  val DEFAULT_ML_MLR_RANK = 5
+  val ML_MLR_V_INIT = "ml.mlr.v.init"
+  val DEFAULT_ML_MLR_V_INIT = 0.1
+  val ML_MLR_REG_L2="ml.mlr.reg.l2"
+  val DEFAULT_ML_MLR_REG_L2 = 0.0
+
+  // SVM parameters
+  val ML_SVM_REG_L2="ml.svm.reg.l2"
+  val DEFAULT_ML_SVM_REG_L2 = 0.0
 
   // Kmeans params
   val KMEANS_CENTER_NUM = "ml.kmeans.center.num"
   val KMEANS_SAMPLE_RATIO_PERBATCH = "ml.kmeans.sample.ratio.perbath"
   val kMEANS_C = "ml.kmeans.c"
 
-  // Lasso params
-  val ML_LASSO_PARAM_NAME = "ml.lasso.param.name"
-  val DEFAULT_ML_LASSO_PARAM_NAME = "ml.lasso.weight"
-
   // MF params
   val ML_MF_RANK = "ml.mf.rank"
   val DEFAULT_ML_MF_RANK = 10
-  val ML_MF_ITEM_NUM  = "ml.mf.item.num"
+  val ML_MF_ITEM_NUM = "ml.mf.item.num"
   val DEFAULT_ML_MF_ITEM_NUM = -1
   val ML_MF_LAMBDA = "ml.mf.lambda"
   val DEFAULT_ML_MF_LAMBDA = 0.01
   val ML_MF_ETA = "ml.mf.eta"
   val DEFAULT_ML_MF_ETA = 0.1
+  val ML_MF_USER_MODEL_OUTPUT_PATH = "ml.mf.user.model.output.path"
   val ML_MF_ROW_BATCH_NUM = "ml.mf.row.batch.num"
   val DEFAULT_ML_MF_ROW_BATCH_NUM = 1
-
-  // Tesla Params
-  val ANGEL_ACTION_TYPE = "actionType"
 
   // GBDT Params
   val ML_GBDT_TASK_TYPE = "ml.gbdt.task.type"
   val DEFAULT_ML_GBDT_TASK_TYPE = "classification"
+  val ML_GBDT_CLASS_NUM = "ml.gbdt.class.num"
+  val DEFAULT_ML_GBDT_CLASS_NUM = 2
+  val ML_GBDT_PARALLEL_MODE = "ml.gbdt.parallel.mode"
+  val DEFAULT_ML_GBDT_PARALLEL_MODE = "data"
   val ML_GBDT_TREE_NUM = "ml.gbdt.tree.num"
   val DEFAULT_ML_GBDT_TREE_NUM = 10
   val ML_GBDT_TREE_DEPTH = "ml.gbdt.tree.depth"
   val DEFAULT_ML_GBDT_TREE_DEPTH = 5
+  val ML_GBDT_MAX_NODE_NUM = "ml.gbdt.max.node.num"
   val ML_GBDT_SPLIT_NUM = "ml.gbdt.split.num"
   val DEFAULT_ML_GBDT_SPLIT_NUM = 5
+  val ML_GBDT_ROW_SAMPLE_RATIO = "ml.gbdt.row.sample.ratio"
+  val DEFAULT_ML_GBDT_ROW_SAMPLE_RATIO = 1
   val ML_GBDT_SAMPLE_RATIO = "ml.gbdt.sample.ratio"
   val DEFAULT_ML_GBDT_SAMPLE_RATIO = 1
   val ML_GBDT_MIN_CHILD_WEIGHT = "ml.gbdt.min.child.weight"
@@ -126,33 +193,6 @@ object MLConf {
   val ML_GBDT_CATE_FEAT = "ml.gbdt.cate.feat"
   val DEFAULT_ML_GBDT_CATE_FEAT = "none"
 
-  // FM params
-  val ML_FM_LEARN_TYPE = "ml.fm.learn.type"
-  val DEFAULT_ML_FM_LEARN_TYPE = "r"
-  val ML_FM_RANK = "ml.fm.rank"
-  val DEFAULT_ML_FM_RANK = 10
-  val ML_FM_REG0 = "ml.fm.reg0"
-  val DEFAULT_ML_FM_REG0 = 0.0
-  val ML_FM_REG1 = "ml.fm.reg1"
-  val DEFAULT_ML_FM_REG1 = 0.0
-  val ML_FM_REG2 = "ml.fm.reg2"
-  val DEFAULT_ML_FM_REG2 = 0.0
-  val ML_FM_V_STDDEV = "ml.fm.v.stddev"
-  val DEFAULT_ML_FM_V_INIT = 0.1
-
-  val ML_MLR_RANK = "ml.mlr.rank"
-  val DEFAULT_ML_MLR_RANK = 5
-  val ML_MLR_V_INIT = "ml.mlr.v.init"
-  val DEFAULT_ML_MLR_V_INIT = 0.1
-
-  // ModelParser params
-  val ML_MODEL_IN_PATH = "ml.model.in.path"
-  val ML_MODEL_OUT_PATH = "ml.model.out.path"
-  val ML_MODEL_CONVERT_THREAD_COUNT = "ml.model.convert.thread.count"
-  val DEFAULT_ML_MODEL_CONVERT_THREAD_COUNT = 1
-  val ML_MODEL_NAME = "ml.model.name"
-
-
   // FTRL param
   val ML_FTRL_ALPHA = "ml.ftrl.alpha"
   val DEFAULT_ML_FTRL_ALPHA = 1
@@ -164,10 +204,6 @@ object MLConf {
   val DEFAULT_ML_FTRL_LAMBDA2 = 0.1
   val ML_FTRL_BATCH_SIZE = "ml.ftrl.batch.size"
   val DEFAULT_ML_FTRL_BATCH_SIZE = 1
-
-  /** The number of samples used to calculate the indexes */
-  val TRAIN_SAMPLE_NUMBER = "train.sample.number"
-  val VALIDATE_SAMPLE_NUMBER = "validate.sample.number"
 
   /** The loss sum of all samples */
   val TRAIN_LOSS = "train.loss"

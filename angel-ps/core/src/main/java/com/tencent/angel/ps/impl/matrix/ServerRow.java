@@ -17,7 +17,9 @@
 package com.tencent.angel.ps.impl.matrix;
 
 import com.tencent.angel.common.Serialize;
+import com.tencent.angel.exception.WaitLockTimeOutException;
 import com.tencent.angel.ml.matrix.RowType;
+import com.tencent.angel.utils.StringUtils;
 import io.netty.buffer.ByteBuf;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -25,6 +27,7 @@ import org.apache.commons.logging.LogFactory;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -41,6 +44,7 @@ public abstract class ServerRow implements Serialize {
   protected long startCol;
   protected int rowVersion;
   protected final ReentrantReadWriteLock lock;
+  public static volatile transient int maxLockWaitTimeMs = 10000;
 
   /**
    * Create a new Server row.
@@ -73,9 +77,95 @@ public abstract class ServerRow implements Serialize {
    *
    * @param rowType the row type
    * @param buf     the buf
-   * @param size    the size
    */
-  public abstract void update(RowType rowType, ByteBuf buf, int size);
+  public abstract void update(RowType rowType, ByteBuf buf);
+
+  /**
+   * Try to get write lock
+   * @param milliseconds maximum wait time in milliseconds
+   */
+  public void tryToLockWrite(long milliseconds) {
+    boolean ret;
+    try {
+      ret = lock.writeLock().tryLock(milliseconds, TimeUnit.MILLISECONDS);
+    } catch (Throwable e) {
+      throw new WaitLockTimeOutException("wait write lock timeout " + StringUtils.stringifyException(e), milliseconds);
+    }
+
+    if(!ret) {
+      throw new WaitLockTimeOutException("wait write timeout", milliseconds);
+    }
+  }
+
+  /**
+   * Try to get write lock
+   */
+  public void tryToLockWrite() {
+    tryToLockWrite(maxLockWaitTimeMs);
+  }
+
+  /**
+   * Try to get read lock
+   */
+  public void tryToLockRead() {
+    tryToLockRead(maxLockWaitTimeMs);
+  }
+
+  /**
+   * Try to get read lock
+   * @param milliseconds maximum wait time in milliseconds
+   */
+  public void tryToLockRead(long milliseconds){
+    boolean ret;
+    try {
+      ret = lock.readLock().tryLock(milliseconds, TimeUnit.MILLISECONDS);
+    } catch (Throwable e) {
+      throw new WaitLockTimeOutException("wait read lock timeout " + StringUtils.stringifyException(e), milliseconds);
+    }
+
+    if(!ret) {
+      throw new WaitLockTimeOutException("wait read timeout", milliseconds);
+    }
+  }
+
+  /**
+   * Get write lock
+   */
+  public void lockWrite() {
+    lock.writeLock().lock();
+  }
+
+  /**
+   * Get read lock
+   */
+  public void lockRead() {
+    lock.readLock().lock();
+  }
+
+  /**
+   * Release write lock
+   */
+  public void unlockWrite(){
+    lock.writeLock().unlock();
+  }
+
+  /**
+   * Release read lock
+   */
+  public void unlockRead(){
+    lock.readLock().unlock();
+  }
+
+  /**
+   * Write row to output
+   *
+   * @param output the output
+   * @param cloneFirst
+   * @throws IOException
+   */
+  protected void writeTo(DataOutputStream output, boolean cloneFirst) throws IOException{
+    //output.writeInt(clock);
+  }
 
   /**
    * Write row to output
@@ -84,7 +174,7 @@ public abstract class ServerRow implements Serialize {
    * @throws IOException
    */
   protected void writeTo(DataOutputStream output) throws IOException{
-    //output.writeInt(clock);
+    writeTo(output, false);
   }
 
   /**
@@ -124,7 +214,7 @@ public abstract class ServerRow implements Serialize {
 
   @Override
   public int bufferLen() {
-    return 20;
+    return 3 * 4 + 2 * 8;
   }
 
   /**

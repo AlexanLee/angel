@@ -29,24 +29,22 @@ public class MultiErrorMetric implements EvalMetric {
    *
    * @return the name
    */
-  @Override
-  public String getName() {
+  @Override public String getName() {
     return "multierror";
   }
 
   /**
    * evaluate a specific metric for instances
    *
-   * @param preds the predictions
+   * @param preds  the predictions
    * @param labels the labels
    * @return the eval metric
    */
-  @Override
-  public float eval(float[] preds, float[] labels) {
+  @Override public float eval(float[] preds, float[] labels) {
     int insNum = labels.length;
     int classNum = preds.length / insNum;
     float err = 0.0f;
-    for (int insIdx = 0; insIdx < insNum; insNum++) {
+    for (int insIdx = 0; insIdx < insNum; insIdx++) {
       float[] temp = new float[classNum];
       System.arraycopy(preds, insIdx * classNum, temp, 0, classNum);
       err += evalOne(temp, labels[insIdx]);
@@ -57,7 +55,7 @@ public class MultiErrorMetric implements EvalMetric {
   /**
    * evaluate a specific metric for one instance
    *
-   * @param pred the prediction
+   * @param pred  the prediction
    * @param label the label
    * @return the eval metric
    */
@@ -68,12 +66,11 @@ public class MultiErrorMetric implements EvalMetric {
   /**
    * evaluate a specific metric for one instance
    *
-   * @param pred the prediction
+   * @param pred  the prediction
    * @param label the label
    * @return the eval metric
    */
-  @Override
-  public float evalOne(float pred, float label) {
+  @Override public float evalOne(float pred, float label) {
     return 0f;
   }
 }

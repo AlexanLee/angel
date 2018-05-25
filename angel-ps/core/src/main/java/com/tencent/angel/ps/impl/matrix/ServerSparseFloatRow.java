@@ -18,6 +18,8 @@ package com.tencent.angel.ps.impl.matrix;
 
 import com.tencent.angel.ml.matrix.RowType;
 import io.netty.buffer.ByteBuf;
+import it.unimi.dsi.fastutil.ints.Int2DoubleMap;
+import it.unimi.dsi.fastutil.ints.Int2DoubleOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2FloatMap;
 import it.unimi.dsi.fastutil.ints.Int2FloatOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
@@ -43,37 +45,52 @@ public class ServerSparseFloatRow extends ServerFloatRow {
    * @param startCol partition start column index
    * @param endCol partition end column index
    */
-  public ServerSparseFloatRow(int rowId, int startCol, int endCol) {
+  public ServerSparseFloatRow(int rowId, int startCol, int endCol, int estEleNum) {
     super(rowId, startCol, endCol);
-    data = new Int2FloatOpenHashMap();
+    data = new Int2FloatOpenHashMap(estEleNum);
   }
 
   /**
    * Create a ServerSparseFloatRow
    */
   public ServerSparseFloatRow() {
-    this(0, 0, 0);
+    this(0, 0, 0, 0);
   }
 
   @Override public float getValue(int index) {
     return data.get(index);
   }
 
-  @Override public void writeTo(DataOutputStream output) throws IOException {
-    try {
-      lock.readLock().lock();
-      super.writeTo(output);
-      output.writeInt(data.size());
-
-      ObjectIterator<Int2FloatMap.Entry> iter = data.int2FloatEntrySet().fastIterator();
-      Int2FloatMap.Entry entry = null;
-      while (iter.hasNext()) {
-        entry = iter.next();
-        output.writeInt(entry.getIntKey());
-        output.writeFloat(entry.getFloatValue());
+  @Override public void writeTo(DataOutputStream output, boolean cloneFirst) throws IOException {
+    if(cloneFirst) {
+      Int2FloatOpenHashMap clonedData;
+      try {
+        lock.readLock().lock();
+        super.writeTo(output, cloneFirst);
+        clonedData = data.clone();
+      } finally {
+        lock.readLock().unlock();
       }
-    } finally {
-      lock.readLock().unlock();
+      writeTo(output, clonedData);
+    } else {
+      try {
+        lock.readLock().lock();
+        super.writeTo(output, cloneFirst);
+        writeTo(output, data);
+      } finally {
+        lock.readLock().unlock();
+      }
+    }
+  }
+
+  private void writeTo(DataOutputStream output, Int2FloatOpenHashMap data) throws IOException {
+    output.writeInt(data.size());
+    ObjectIterator<Int2FloatMap.Entry> iter = data.int2FloatEntrySet().fastIterator();
+    Int2FloatMap.Entry entry;
+    while (iter.hasNext()) {
+      entry = iter.next();
+      output.writeInt(entry.getIntKey());
+      output.writeFloat(entry.getFloatValue());
     }
   }
 
@@ -99,24 +116,25 @@ public class ServerSparseFloatRow extends ServerFloatRow {
     }
   }
 
-  @Override public void update(RowType rowType, ByteBuf buf, int size) {
+  @Override public void update(RowType rowType, ByteBuf buf) {
+    tryToLockWrite();
+
     try {
-      lock.writeLock().lock();
       switch (rowType) {
         case T_FLOAT_DENSE:
-          updateFloatDense(buf, size);
+          updateFloatDense(buf);
           break;
 
         case T_FLOAT_SPARSE:
         case T_FLOAT_SPARSE_COMPONENT:
-          updateFloatSparse(buf, size);
+          updateFloatSparse(buf);
           break;
 
         default:
           throw new UnsupportedOperationException("Unsupport operation: update " + rowType + " to " + this.getClass().getName());
       }
     } finally {
-      lock.writeLock().unlock();
+      unlockWrite();
     }
   }
 
@@ -124,18 +142,21 @@ public class ServerSparseFloatRow extends ServerFloatRow {
     if(data.size() < size) {
       Int2FloatOpenHashMap oldMap = data;
       data = new Int2FloatOpenHashMap(size);
+      data.defaultReturnValue(oldMap.defaultReturnValue());
       data.putAll(oldMap);
     }
   }
 
-  private void updateFloatDense(ByteBuf buf, int size) {
+  private void updateFloatDense(ByteBuf buf) {
+    int size = buf.readInt();
     resizeHashMap(size);
     for (int i = 0; i < size; i++) {
       data.addTo(i, buf.readFloat());
     }
   }
 
-  private void updateFloatSparse(ByteBuf buf, int size) {
+  private void updateFloatSparse(ByteBuf buf) {
+    int size = buf.readInt();
     resizeHashMap(size);
     for (int i = 0; i < size; i++) {
       data.addTo(buf.readInt(), buf.readFloat());
@@ -195,7 +216,7 @@ public class ServerSparseFloatRow extends ServerFloatRow {
   }
 
   /**
-   * Merge a serialized dense float vector split to this sparse float vector split
+   * Merge a serialized sparse float vector split to this sparse float vector split
    * @param size dense float vector split length
    * @param buf serialized dense float vector split
    */

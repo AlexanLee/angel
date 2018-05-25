@@ -59,13 +59,14 @@ class MLRModel(conf: Configuration, _ctx: TaskContext = null) extends MLModel(co
   val MLR_SOFTMAX_WEIGHT_MAT = "mlr_softmax_weight"
   val MLR_SOFTMAX_INTERCEPT = "mlr_softmax_intercept"
 
-  val feaNum = conf.getInt(MLConf.ML_FEATURE_NUM, MLConf.DEFAULT_ML_FEATURE_NUM)
+  val indexRange: Long = conf.getLong(MLConf.ML_FEATURE_INDEX_RANGE, MLConf.DEFAULT_ML_FEATURE_INDEX_RANGE)
+  val modelSize: Long = conf.getLong(MLConf.ML_MODEL_SIZE, indexRange)
   val rank = conf.getInt(MLConf.ML_MLR_RANK, MLConf.DEFAULT_ML_MLR_RANK)
 
-  val sigmoid_weight = PSModel(MLR_SIGMOID_WEIGHT_MAT, rank, feaNum).setRowType(RowType.T_DOUBLE_DENSE).setAverage(true)
+  val sigmoid_weight = PSModel(MLR_SIGMOID_WEIGHT_MAT, rank, indexRange, -1, -1, modelSize).setRowType(RowType.T_DOUBLE_DENSE).setAverage(true)
   val sigmoid_intercept = PSModel(MLR_SIGMOID_INTERCEPT, rank, 1).setRowType(RowType.T_DOUBLE_DENSE).setAverage(true)
 
-  val softmax_weight = PSModel(MLR_SOFTMAX_WEIGHT_MAT, rank, feaNum).setRowType(RowType.T_DOUBLE_DENSE).setAverage(true)
+  val softmax_weight = PSModel(MLR_SOFTMAX_WEIGHT_MAT, rank, indexRange, -1, -1, modelSize).setRowType(RowType.T_DOUBLE_DENSE).setAverage(true)
   val softmax_intercept = PSModel(MLR_SOFTMAX_INTERCEPT, rank, 1).setRowType(RowType.T_DOUBLE_DENSE).setAverage(true)
 
   addPSModel(MLR_SIGMOID_WEIGHT_MAT, sigmoid_weight)
@@ -91,15 +92,15 @@ class MLRModel(conf: Configuration, _ctx: TaskContext = null) extends MLModel(co
     val predict = new MemoryDataBlock[PredictResult](-1)
 
     dataSet.resetReadIndex()
-    ( 0 until dataSet.size).foreach( _ => {
+    (0 until dataSet.size).foreach(_ => {
       val instance = dataSet.read
       val id = instance.getY
       val softmax = (0 until rank).map(i => softmax_wVecot(i).dot(instance.getX) + softmax_b(i)).toArray
       Maths.softmax(softmax)
       val sigmoid = (0 until rank).map(i => Maths.sigmoid({
-        var temp=sigmoid_wVecot(i).dot(instance.getX) + sigmoid_b(i)
-        temp=math.max(temp,-18)
-        temp=math.min(temp,18)
+        var temp = sigmoid_wVecot(i).dot(instance.getX) + sigmoid_b(i)
+        temp = math.max(temp, -18)
+        temp = math.min(temp, 18)
         temp
       })).toArray
       val pre = (0 until rank).map(i => softmax(i) * sigmoid(i)).reduce(_ + _)

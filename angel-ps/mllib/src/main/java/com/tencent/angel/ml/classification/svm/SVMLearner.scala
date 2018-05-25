@@ -33,7 +33,7 @@ import org.apache.commons.logging.LogFactory
 /**
   * Learner of support vector machine model using mini-batch gradient descent.
   *
-  * @param ctx: context for each task
+  * @param ctx : context for each task
   */
 class SVMLearner(override val ctx: TaskContext) extends MLLearner(ctx) {
 
@@ -42,10 +42,11 @@ class SVMLearner(override val ctx: TaskContext) extends MLLearner(ctx) {
   val epochNum: Int = conf.getInt(MLConf.ML_EPOCH_NUM, MLConf.DEFAULT_ML_EPOCH_NUM)
   val initLearnRate: Double = conf.getDouble(MLConf.ML_LEARN_RATE, MLConf.DEFAULT_ML_LEAR_RATE)
   val decay: Double = conf.getDouble(MLConf.ML_LEARN_DECAY, MLConf.DEFAULT_ML_LEARN_DECAY)
-  val reg: Double = conf.getDouble(MLConf.ML_REG_L2, MLConf.DEFAULT_ML_REG_L2)
-  val feaNum: Int = conf.getInt(MLConf.ML_FEATURE_NUM, MLConf.DEFAULT_ML_FEATURE_NUM)
-  val spRatio: Double = conf.getDouble(MLConf.ML_BATCH_SAMPLE_Ratio, MLConf.DEFAULT_ML_BATCH_SAMPLE_Ratio)
-  val batchNum: Int = conf.getInt(MLConf.ML_SGD_BATCH_NUM, MLConf.DEFAULT_ML_SGD_BATCH_NUM)
+  val reg: Double = conf.getDouble(MLConf.ML_SVM_REG_L2, MLConf.DEFAULT_ML_SVM_REG_L2)
+  val indexRange: Long = conf.getLong(MLConf.ML_FEATURE_INDEX_RANGE, MLConf.DEFAULT_ML_FEATURE_INDEX_RANGE)
+
+  val spRatio: Double = conf.getDouble(MLConf.ML_BATCH_SAMPLE_RATIO, MLConf.DEFAULT_ML_BATCH_SAMPLE_RATIO)
+  val batchNum: Int = conf.getInt(MLConf.ML_NUM_UPDATE_PER_EPOCH, MLConf.DEFAULT_ML_NUM_UPDATE_PER_EPOCH)
 
   val svmModel = new SVMModel(conf, ctx)
 
@@ -56,8 +57,8 @@ class SVMLearner(override val ctx: TaskContext) extends MLLearner(ctx) {
   /**
     * run mini-batch gradient descent SVM for one epoch
     *
-    * @param epoch: epoch id
-    * @param trainData: trainning data storage
+    * @param epoch     : epoch id
+    * @param trainData : trainning data storage
     */
   def trainOneEpoch(epoch: Int, trainData: DataBlock[LabeledData], batchSize: Int): TDoubleVector = {
 
@@ -67,7 +68,7 @@ class SVMLearner(override val ctx: TaskContext) extends MLLearner(ctx) {
     val startGD = System.currentTimeMillis()
     // Run mini-batch gradient descent.
     val ret = GradientDescent.miniBatchGD(trainData, svmModel.weight, None,
-                                          learnRate, hingeLoss, batchSize, batchNum)
+      learnRate, hingeLoss, batchSize, batchNum, ctx)
     val loss = ret._1
     val localW = ret._2
 
@@ -80,15 +81,15 @@ class SVMLearner(override val ctx: TaskContext) extends MLLearner(ctx) {
   /**
     * train SVM model iteratively
     *
-    * @param trainData: trainning data storage
-    * @param validationData: validation data storage
+    * @param trainData      : trainning data storage
+    * @param validationData : validation data storage
     */
   override def train(trainData: DataBlock[LabeledData], validationData: DataBlock[LabeledData]):
   MLModel = {
     val trainSampNum = (trainData.size * spRatio).toInt
     val batchSize = trainSampNum / batchNum
 
-    LOG.info(s"Task[${ctx.getTaskIndex}] start SVM learner. #feature=$feaNum, "
+    LOG.info(s"Task[${ctx.getTaskIndex}] start SVM learner. #feature=$indexRange, "
       + s"#trainSample=${trainData.size}, #validateSample=${validationData.size}, "
       + s"sampleRaitoPerBatch=$spRatio, #samplePerBatch=$trainSampNum")
 
@@ -122,11 +123,11 @@ class SVMLearner(override val ctx: TaskContext) extends MLLearner(ctx) {
   /**
     * validate loss, Auc, Precision or other
     *
-    * @param epoch          : epoch id
+    * @param epoch    : epoch id
     * @param valiData : validata data storage
     */
-  def validate(epoch: Int, weight:TDoubleVector, trainData:DataBlock[LabeledData], valiData:
-    DataBlock[LabeledData]) = {
+  def validate(epoch: Int, weight: TDoubleVector, trainData: DataBlock[LabeledData], valiData:
+  DataBlock[LabeledData]) = {
     val trainMetrics = ValidationUtils.calMetrics(trainData, weight, hingeLoss)
     LOG.info(s"Task[${ctx.getTaskIndex}] epoch=$epoch trainData loss=${trainMetrics._1 / trainData.size()} " +
       s"precision=${trainMetrics._2} auc=${trainMetrics._3} trueRecall=${trainMetrics._4} " +
@@ -135,8 +136,10 @@ class SVMLearner(override val ctx: TaskContext) extends MLLearner(ctx) {
 
     if (valiData.size > 0) {
       val valiMetric = ValidationUtils.calMetrics(valiData, weight, hingeLoss);
-      LOG.info(s"Task[${ctx.getTaskIndex}] epoch=$epoch validationData loss=${valiMetric._1 /
-        valiData.size()}" + s"precision=${valiMetric._2} auc=${valiMetric._3} trueRecall=${valiMetric._4} " +
+      LOG.info(s"Task[${ctx.getTaskIndex}] epoch=$epoch validationData loss=${
+        valiMetric._1 /
+          valiData.size()
+      }" + s"precision=${valiMetric._2} auc=${valiMetric._3} trueRecall=${valiMetric._4} " +
         s"falseRecall=${valiMetric._5}")
       globalMetrics.metric(MLConf.VALID_LOSS, valiMetric._1)
     }

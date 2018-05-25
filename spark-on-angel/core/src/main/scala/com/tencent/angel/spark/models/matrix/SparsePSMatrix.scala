@@ -53,8 +53,13 @@ class SparsePSMatrix(
 object SparsePSMatrix {
   val psContext = PSContext.instance()
 
+  def apply(rows: Int, cols: Long, range: Long): SparsePSMatrix = {
+    val matrixMeta = psContext.createSparseMatrix(rows, cols, range, -1, -1)
+    new SparsePSMatrix(matrixMeta.getId, rows, cols)
+  }
+
   def apply(rows: Int, cols: Long): SparsePSMatrix = {
-    val matrixMeta = psContext.createMatrix(rows, cols, MatrixType.SPARSE, -1, -1)
+    val matrixMeta = psContext.createSparseMatrix(rows, cols, cols, -1, -1)
     new SparsePSMatrix(matrixMeta.getId, rows, cols)
   }
 }

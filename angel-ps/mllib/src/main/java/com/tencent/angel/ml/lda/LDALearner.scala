@@ -30,11 +30,11 @@ import com.tencent.angel.ml.MLLearner
 import com.tencent.angel.ml.conf.MLConf._
 import com.tencent.angel.ml.feature.LabeledData
 import com.tencent.angel.ml.lda.algo.{CSRTokens, Sampler}
-import com.tencent.angel.ml.lda.psf.{GetPartFunc, LikelihoodFunc, PartCSRResult}
+import com.tencent.angel.ml.lda.psf._
 import com.tencent.angel.ml.math.vector.{DenseIntVector, TIntVector}
 import com.tencent.angel.ml.matrix.psf.aggr.enhance.ScalarAggrResult
 import com.tencent.angel.ml.matrix.psf.get.base.PartitionGetResult
-import com.tencent.angel.ml.matrix.psf.get.multi.PartitionGetRowsParam
+import com.tencent.angel.ml.matrix.psf.get.multi.{GetRowsParam, PartitionGetRowsParam}
 import com.tencent.angel.ml.matrix.psf.update.enhance.VoidResult
 import com.tencent.angel.ml.metric.ObjMetric
 import com.tencent.angel.ml.model.MLModel
@@ -71,7 +71,7 @@ class LDALearner(ctx: TaskContext, model: LDAModel, data: CSRTokens) extends MLL
 
   // Hyper parameters
   val alpha = model.alpha
-  val beta  = model.beta
+  val beta = model.beta
   val lgammaBeta = Gamma.logGamma(beta)
   val lgammaAlpha = Gamma.logGamma(alpha)
   val lgammaAlphaSum = Gamma.logGamma(alpha * model.K)
@@ -107,14 +107,14 @@ class LDALearner(ctx: TaskContext, model: LDAModel, data: CSRTokens) extends MLL
   def fetchNk: Unit = {
     val row = model.tMat.getRow(0).asInstanceOf[TIntVector]
     var sum = 0L
-    val sb = new mutable.StringBuilder()
+//    val sb = new mutable.StringBuilder()
     for (i <- 0 until model.K) {
       nk(i) = row.get(i)
       sum += nk(i)
-      sb.append(nk(i) + " ")
+//      sb.append(nk(i) + " ")
     }
 
-    LOG.info(sb.toString())
+//    LOG.info(sb.toString())
     LOG.info(s"nk_sum=$sum")
   }
 
@@ -132,7 +132,6 @@ class LDALearner(ctx: TaskContext, model: LDAModel, data: CSRTokens) extends MLL
 
       // submit to client
       globalMetrics.metric(LOG_LIKELIHOOD, ll)
-//      ctx.incEpoch()
 
       if (epoch % 4 == 0) reset(epoch)
     }
@@ -179,7 +178,7 @@ class LDALearner(ctx: TaskContext, model: LDAModel, data: CSRTokens) extends MLL
 
   def computeWordLLH: Double = {
     model.wtMat.get(new LikelihoodFunc(model.wtMat.getMatrixId(), beta)) match {
-      case r : ScalarAggrResult => r.getResult
+      case r: ScalarAggrResult => r.getResult
       case _ => throw new AngelException("should be ScalarAggrResult")
     }
   }
@@ -213,9 +212,12 @@ class LDALearner(ctx: TaskContext, model: LDAModel, data: CSRTokens) extends MLL
     val iter = pkeys.iterator()
     val func = new GetPartFunc(null)
     val futures = new mutable.HashMap[PartitionKey, Future[PartitionGetResult]]()
-    while (iter.hasNext) {
-      val pkey = iter.next()
-      val param = new PartitionGetRowsParam(model.wtMat.getMatrixId(), pkey, reqRows.get(pkey.getPartitionId))
+    val size = pkeys.size
+    var idx = Math.min(10, size)
+    for (i <- 0 until idx) {
+      val pkey = pkeys.get(i)
+      val param = new PartitionGetRowsParam(model.wtMat.getMatrixId(), pkey,
+        reqRows.get(pkey.getPartitionId))
       val future = client.get(func, param)
       futures.put(pkey, future)
     }
@@ -230,6 +232,16 @@ class LDALearner(ctx: TaskContext, model: LDAModel, data: CSRTokens) extends MLL
         val future = futures.get(pkey).get
         if (future.isDone) {
           val sampler = queue.take()
+
+          if (idx < size) {
+            val pkey = pkeys.get(idx)
+            val param = new PartitionGetRowsParam(model.wtMat.getMatrixId(), pkey,
+              reqRows.get(pkey.getPartitionId))
+            val future = client.get(func, param)
+            futures.put(pkey, future)
+            idx += 1
+          }
+
           future.get() match {
             case csr: PartCSRResult => executor.execute(new Task(sampler, pkey, csr))
             case _ => throw new AngelException("should by PartCSRResult")
@@ -265,6 +277,7 @@ class LDALearner(ctx: TaskContext, model: LDAModel, data: CSRTokens) extends MLL
     val results = new LinkedBlockingQueue[Double]()
     class Task(index: AtomicInteger) extends Thread {
       private var ll = 0.0
+
       override def run(): Unit = {
         while (index.get() < n_docs) {
           val d = index.incrementAndGet()
@@ -280,7 +293,8 @@ class LDALearner(ctx: TaskContext, model: LDAModel, data: CSRTokens) extends MLL
     }
 
     val index = new AtomicInteger(0)
-    var ll = 0.0; var nnz = 0
+    var ll = 0.0;
+    var nnz = 0
     for (i <- 0 until model.threadNum) executor.execute(new Task(index))
     for (i <- 0 until model.threadNum) ll += results.take()
     for (d <- 0 until n_docs) nnz += data.dks(d).size
@@ -371,6 +385,7 @@ class LDALearner(ctx: TaskContext, model: LDAModel, data: CSRTokens) extends MLL
   }
 
   def initForInference(): Unit = {
+    fetchNk
     class Task(sampler: Sampler, pkey: PartitionKey) extends Thread {
       override def run(): Unit = {
         sampler.initForInference(pkey)
@@ -404,10 +419,13 @@ class LDALearner(ctx: TaskContext, model: LDAModel, data: CSRTokens) extends MLL
     val iter = pkeys.iterator()
     val func = new GetPartFunc(null)
     val futures = new mutable.HashMap[PartitionKey, Future[PartitionGetResult]]()
-    while (iter.hasNext) {
-      val pkey = iter.next()
-//      val param = new PartitionGetParam(model.wtMat.getMatrixId, pkey)
-      val param = new PartitionGetRowsParam(model.wtMat.getMatrixId(), pkey, reqRows.get(pkey.getPartitionId))
+
+    val size = pkeys.size
+    var idx = Math.min(10, size)
+    for (i <- 0 until idx) {
+      val pkey = pkeys.get(i)
+      val param = new PartitionGetRowsParam(model.wtMat.getMatrixId(), pkey,
+        reqRows.get(pkey.getPartitionId))
       val future = client.get(func, param)
       futures.put(pkey, future)
     }
@@ -422,6 +440,16 @@ class LDALearner(ctx: TaskContext, model: LDAModel, data: CSRTokens) extends MLL
         val future = futures.get(pkey).get
         if (future.isDone) {
           val sampler = queue.take()
+
+          if (idx < size) {
+            val pkey = pkeys.get(idx)
+            val param = new PartitionGetRowsParam(model.wtMat.getMatrixId(), pkey,
+              reqRows.get(pkey.getPartitionId))
+            val future = client.get(func, param)
+            futures.put(pkey, future)
+            idx += 1
+          }
+
           future.get() match {
             case csr: PartCSRResult => executor.execute(new Task(sampler, pkey, csr))
             case _ => throw new AngelException("should by PartCSRResult")
@@ -447,50 +475,111 @@ class LDALearner(ctx: TaskContext, model: LDAModel, data: CSRTokens) extends MLL
 
   def saveWordTopic(model: LDAModel): Unit = {
     LOG.info("save word topic")
-    val dir  = conf.get(AngelConf.ANGEL_SAVE_MODEL_PATH)
-    val base = dir + "/" + "word_topic"
     val taskId = ctx.getTaskIndex
-    val dest = new Path(base, taskId.toString)
-
-    val fs  = dest.getFileSystem(conf)
-    val tmp = HdfsUtil.toTmpPath(dest)
-    val out = new BufferedOutputStream(fs.create(tmp))
-
 
     val num = model.V / ctx.getTotalTaskNum + 1
     val start = taskId * num
-    val end   = Math.min(model.V, start + num)
+    val end = Math.min(model.V, start + num)
 
-    val index = new RowIndex()
-    for (i <- start until end) index.addRowId(i)
-    val rr = model.wtMat.getRows(index, 1000)
+    if (start < end) {
+      val index = new RowIndex()
+      for (i <- start until end) index.addRowId(i)
 
-    for (row <- start until end) {
-      val x = rr.get(row).get.asInstanceOf[TIntVector]
-      val len = x.size()
-      val sb = new StringBuilder
-      sb.append(x.getRowId + ":")
-      for (i <- 0 until len)
-        sb.append(s" ${x.get(i)}")
-      sb.append("\n")
-      out.write(sb.toString().getBytes("UTF-8"))
+      val dir = conf.get(AngelConf.ANGEL_SAVE_MODEL_PATH)
+      val base = dir + "/" + "word_topic"
+      val dest = new Path(base, taskId.toString)
+
+      val fs = dest.getFileSystem(conf)
+      val tmp = HdfsUtil.toTmpPath(dest)
+      val out = new BufferedOutputStream(fs.create(tmp))
+
+      val rr = model.wtMat.getRows(index, 1000)
+
+      for (row <- start until end) {
+        val x = rr.get(row).get.asInstanceOf[TIntVector]
+        val len = x.size()
+        val sb = new StringBuilder
+        sb.append(x.getRowId)
+        for (i <- 0 until len) {
+          if (x.get(i) > 0)
+            sb.append(s" ${i}:${x.get(i)}")
+        }
+        sb.append("\n")
+        out.write(sb.toString().getBytes("UTF-8"))
+      }
+
+      out.flush()
+      out.close()
+      fs.rename(tmp, dest)
     }
+  }
 
-    out.flush()
-    out.close()
-    fs.rename(tmp, dest)
+  def saveWordTopicDistribution(model: LDAModel): Unit = {
+    LOG.info("save word topic distribution")
+    val taskId = ctx.getTaskIndex
+
+    val num = model.K / ctx.getTotalTaskNum + 1
+    val start = taskId * num
+    val end = Math.min(model.K, start + num)
+
+    val index = new util.ArrayList[Integer]()
+    for (i <- start until end) index.add(i)
+
+    if (index.size() > 0) {
+
+      val dir = conf.get(AngelConf.ANGEL_SAVE_MODEL_PATH)
+      val base = dir + "/" + "word_topic_distribution"
+      val dest = new Path(base, taskId.toString)
+
+      val fs = dest.getFileSystem(conf)
+      val tmp = HdfsUtil.toTmpPath(dest)
+      val out = new BufferedOutputStream(fs.create(tmp))
+
+      val param = new GetRowsParam(model.wtMat.getMatrixId(), index)
+      val func = new GetColumnFunc(param)
+      val result = model.wtMat.get(func).asInstanceOf[ColumnGetResult]
+
+      fetchNk
+
+      var sum: Long = 0L
+      val cks = result.cks
+      val keyIterator = cks.keySet().iterator()
+      while (keyIterator.hasNext) {
+        val column = keyIterator.next()
+        val sb = new StringBuilder
+        sb.append(column)
+        val ck = cks.get(column)
+        val numTopicSum = nk(column.toInt)
+        val iter = ck.int2IntEntrySet().fastIterator()
+        while (iter.hasNext) {
+          val entry = iter.next()
+          val row = entry.getIntKey
+          val value = entry.getIntValue
+          sum += value
+          val p = (value + model.beta) / (numTopicSum + model.V * model.beta)
+          sb.append(s" ${row}:${p}")
+        }
+        sb.append("\n")
+        out.write(sb.toString().getBytes("UTF-8"))
+      }
+
+      out.flush()
+      out.close()
+      fs.rename(tmp, dest)
+      LOG.info(s"sum = $sum")
+    }
   }
 
   def saveDocTopic(data: CSRTokens, model: LDAModel): Unit = {
     LOG.info("save doc topic ")
-    val dir  = conf.get(AngelConf.ANGEL_SAVE_MODEL_PATH)
+    val dir = conf.get(AngelConf.ANGEL_SAVE_MODEL_PATH)
     val base = dir + "/" + "doc_topic"
     val part = ctx.getTaskIndex
 
     val dest = new Path(base, part.toString)
-    val fs   = dest.getFileSystem(conf)
-    val tmp  = HdfsUtil.toTmpPath(dest)
-    val out  = new BufferedOutputStream(fs.create(tmp))
+    val fs = dest.getFileSystem(conf)
+    val tmp = HdfsUtil.toTmpPath(dest)
+    val out = new BufferedOutputStream(fs.create(tmp))
 
     for (d <- 0 until data.dks.size) {
       val sb = new StringBuilder
@@ -506,5 +595,36 @@ class LDALearner(ctx: TaskContext, model: LDAModel, data: CSRTokens) extends MLL
     out.flush()
     out.close()
     fs.rename(tmp, dest)
+  }
+
+  def saveDocTopicDistribution(data: CSRTokens, model: LDAModel): Unit = {
+    LOG.info("save doc topic distribution")
+    val dir = conf.get(AngelConf.ANGEL_SAVE_MODEL_PATH)
+    val base = dir + "/" + "doc_topic_distribution"
+    val part = ctx.getTaskIndex
+
+    val dest = new Path(base, part.toString)
+    val fs   = dest.getFileSystem(conf)
+    val tmp  = HdfsUtil.toTmpPath(dest)
+    val out  = new BufferedOutputStream(fs.create(tmp))
+
+    for (d <- 0 until data.dks.size) {
+      val sb = new StringBuilder
+      val dk = data.dks(d)
+      sb.append(data.docIds(d))
+      val num = data.docLens(d)
+      val len = dk.size
+      for (i <- 0 until len) {
+        val value = (dk.getVal(i) + model.alpha) / (num + model.K * model.alpha)
+        sb.append(s" ${dk.getKey(i)}:${value}")
+      }
+      sb.append("\n")
+      out.write(sb.toString().getBytes("UTF-8"))
+    }
+
+    out.flush()
+    out.close()
+    fs.rename(tmp, dest)
+
   }
 }

@@ -28,10 +28,10 @@ object HDFSUtils {
 
   val LOG = LogFactory.getLog("HDFSUtils")
 
-  def readFeatureNum(path: String, conf: Configuration) : Int = {
+  def readFeatureNum(path: String, conf: Configuration): Int = {
     val maxdimPath = new Path(path)
     val fin = maxdimPath.getFileSystem(conf).open(maxdimPath)
-    if (! maxdimPath.getFileSystem(conf).exists(maxdimPath)) {
+    if (!maxdimPath.getFileSystem(conf).exists(maxdimPath)) {
       LOG.info("maxdimPath is null.")
     }
 
@@ -40,7 +40,7 @@ object HDFSUtils {
     dim.readLine(line)
     val feaNum = Integer.valueOf(line.toString)
     dim.close()
-    conf.set(MLConf.ML_FEATURE_NUM, String.valueOf(feaNum))
+    conf.set(MLConf.ML_FEATURE_INDEX_RANGE, String.valueOf(feaNum))
     feaNum
   }
 }

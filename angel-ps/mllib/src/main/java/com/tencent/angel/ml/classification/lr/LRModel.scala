@@ -19,8 +19,11 @@ package com.tencent.angel.ml.classification.lr
 
 import java.text.DecimalFormat
 
+import com.tencent.angel.exception.AngelException
 import com.tencent.angel.ml.conf.MLConf
 import com.tencent.angel.ml.feature.LabeledData
+import com.tencent.angel.ml.math.TVector
+import com.tencent.angel.ml.math.vector._
 import com.tencent.angel.ml.matrix.RowType
 import com.tencent.angel.ml.model.{MLModel, PSModel}
 import com.tencent.angel.ml.predict.PredictResult
@@ -35,12 +38,12 @@ import org.apache.hadoop.conf.Configuration
   *
   */
 
-object LRModel{
+object LRModel {
   def apply(conf: Configuration) = {
     new LRModel(conf)
   }
 
-  def apply(ctx:TaskContext, conf: Configuration) = {
+  def apply(ctx: TaskContext, conf: Configuration) = {
     new LRModel(conf, ctx)
   }
 }
@@ -52,18 +55,19 @@ class LRModel(conf: Configuration, _ctx: TaskContext = null) extends MLModel(con
   val LR_WEIGHT_MAT = "lr_weight"
   val LR_INTERCEPT = "lr_intercept"
 
-  val feaNum = conf.getLong(MLConf.ML_FEATURE_NUM, MLConf.DEFAULT_ML_FEATURE_NUM)
-  val modelType = RowType.valueOf(conf.get(MLConf.LR_MODEL_TYPE, RowType.T_DOUBLE_SPARSE.toString))
+  val indexRange: Long = conf.getLong(MLConf.ML_FEATURE_INDEX_RANGE, MLConf.DEFAULT_ML_FEATURE_INDEX_RANGE)
+  val modelSize: Long = conf.getLong(MLConf.ML_MODEL_SIZE, indexRange)
+  val modelType = RowType.valueOf(conf.get(MLConf.ML_MODEL_TYPE, MLConf.DEFAULT_ML_MODEL_TYPE))
 
-  val weight = PSModel(LR_WEIGHT_MAT, 1, feaNum).setAverage(true).setRowType(modelType)
-  val intercept_ = PSModel(LR_INTERCEPT, 1, 1).setAverage(true).setRowType(modelType)
+  val weight = PSModel(LR_WEIGHT_MAT, 1, indexRange, -1, -1, modelSize).setAverage(true).setRowType(modelType)
+  val intercept_ = PSModel(LR_INTERCEPT, 1, 1, -1, -1, 1).setAverage(true).setRowType(modelType)
 
   val intercept =
-  if (conf.getBoolean(MLConf.LR_USE_INTERCEPT, MLConf.DEFAULT_LR_USE_INTERCEPT)) {
-    Some(intercept_)
-  } else {
-    None
-  }
+    if (conf.getBoolean(MLConf.LR_USE_INTERCEPT, MLConf.DEFAULT_LR_USE_INTERCEPT)) {
+      Some(intercept_)
+    } else {
+      None
+    }
   addPSModel(LR_WEIGHT_MAT, weight)
   addPSModel(LR_INTERCEPT, intercept_)
 
@@ -80,26 +84,44 @@ class LRModel(conf: Configuration, _ctx: TaskContext = null) extends MLModel(con
   def predict(dataSet: DataBlock[LabeledData]): DataBlock[PredictResult] = {
     val start = System.currentTimeMillis()
     val wVector = weight.getRow(0)
+    val bias = if (conf.getBoolean(MLConf.LR_USE_INTERCEPT, MLConf.DEFAULT_LR_USE_INTERCEPT)) {
+      getBias(intercept_.getRow(0))
+    } else {
+      0.0
+    }
     val cost = System.currentTimeMillis() - start
-    LOG.info(s"pull LR Model from PS cost $cost ms." )
+    LOG.info(s"pull LR Model from PS cost $cost ms.")
 
     val predict = new MemoryDataBlock[PredictResult](-1)
 
     dataSet.resetReadIndex()
-    for (idx: Int <- 0 until dataSet.size) {
+    for (_: Int <- 0 until dataSet.size) {
       val instance = dataSet.read
       val id = instance.getY
-      val dot = wVector.dot(instance.getX)
+      val dot = wVector.dot(instance.getX) + bias
       val sig = Maths.sigmoid(dot)
       predict.put(new LRPredictResult(id, dot, sig))
     }
     predict
   }
+
+  private def getBias(vec: TVector):Double = {
+    vec.getType match {
+      case RowType.T_DOUBLE_DENSE => vec.asInstanceOf[DenseDoubleVector].get(0)
+      case RowType.T_DOUBLE_SPARSE => vec.asInstanceOf[SparseDoubleVector].get(0)
+      case RowType.T_DOUBLE_SPARSE_LONGKEY => vec.asInstanceOf[SparseLongKeyDoubleVector].get(0)
+      case RowType.T_FLOAT_DENSE => vec.asInstanceOf[DenseFloatVector].get(0).toDouble
+      case RowType.T_FLOAT_SPARSE => vec.asInstanceOf[SparseFloatVector].get(0).toDouble
+      case RowType.T_FLOAT_SPARSE_LONGKEY => vec.asInstanceOf[SparseLongKeyFloatVector].get(0).toDouble
+      case _ => throw new AngelException("RowType is not support for intercept")
+    }
+  }
 }
 
 class LRPredictResult(id: Double, dot: Double, sig: Double) extends PredictResult {
   val df = new DecimalFormat("0")
-  override def getText():String = {
+
+  override def getText(): String = {
     df.format(id) + separator + format.format(dot) + separator + format.format(sig)
   }
 }

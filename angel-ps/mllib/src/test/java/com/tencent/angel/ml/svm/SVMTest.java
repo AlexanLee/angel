@@ -42,8 +42,7 @@ public class SVMTest {
     PropertyConfigurator.configure("../conf/log4j.properties");
   }
 
-  @Before
-  public void setup() throws Exception {
+  @Before public void setup() throws Exception {
     try {
       // Feature number of train data
       int featureNum = 124;
@@ -66,9 +65,10 @@ public class SVMTest {
       // Set basic configuration keys
       conf.setBoolean("mapred.mapper.new-api", true);
       conf.setBoolean(AngelConf.ANGEL_JOB_OUTPUT_PATH_DELETEONEXIST, true);
+      conf.setInt(AngelConf.ANGEL_PSAGENT_CACHE_SYNC_TIMEINTERVAL_MS, 100);
 
       // Set data format
-      conf.set(MLConf.ML_DATA_FORMAT(), dataFmt);
+      conf.set(MLConf.ML_DATA_INPUT_FORMAT(), dataFmt);
 
       // Use local deploy mode
       conf.set(AngelConf.ANGEL_DEPLOY_MODE, "LOCAL");
@@ -79,21 +79,20 @@ public class SVMTest {
       conf.setInt(AngelConf.ANGEL_PS_NUMBER, 1);
 
       //set sgd SVM algorithm parameters
-      conf.set(MLConf.ML_FEATURE_NUM(), String.valueOf(featureNum));
+      conf.set(MLConf.ML_FEATURE_INDEX_RANGE(), String.valueOf(featureNum));
       conf.set(MLConf.ML_EPOCH_NUM(), String.valueOf(epochNum));
-      conf.set(MLConf.ML_BATCH_SAMPLE_Ratio(), String.valueOf(spRatio));
+      conf.set(MLConf.ML_BATCH_SAMPLE_RATIO(), String.valueOf(spRatio));
       conf.set(MLConf.ML_VALIDATE_RATIO(), String.valueOf(vRatio));
       conf.set(MLConf.ML_LEARN_RATE(), String.valueOf(learnRate));
       conf.set(MLConf.ML_LEARN_DECAY(), String.valueOf(decay));
-      conf.set(MLConf.ML_REG_L2(), String.valueOf(reg));
+      conf.set(MLConf.ML_LR_REG_L2(), String.valueOf(reg));
     } catch (Exception x) {
       LOG.error("setup failed ", x);
       throw x;
     }
   }
 
-  @Test
-  public void testSVM()throws Exception {
+  @Test public void testSVM() throws Exception {
     trainOnLocalClusterTest();
     incLearnTest();
   }
@@ -121,7 +120,7 @@ public class SVMTest {
     }
   }
 
-  private void incLearnTest()  throws Exception{
+  private void incLearnTest() throws Exception {
     try {
       String inputPath = "./src/test/data/lr/a9a.train";
       String logPath = "./src/test/log";
@@ -129,7 +128,7 @@ public class SVMTest {
       // Set trainning data path
       conf.set(AngelConf.ANGEL_TRAIN_DATA_PATH, inputPath);
       // Set load model path
-      conf.set(AngelConf.ANGEL_LOAD_MODEL_PATH, LOCAL_FS+TMP_PATH+"/SVMModel");
+      conf.set(AngelConf.ANGEL_LOAD_MODEL_PATH, LOCAL_FS + TMP_PATH + "/SVMModel");
       // Set save model path
       conf.set(AngelConf.ANGEL_SAVE_MODEL_PATH, LOCAL_FS + TMP_PATH + "/newSVMModel");
       // Set actionType incremental train

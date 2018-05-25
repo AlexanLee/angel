@@ -143,6 +143,10 @@ public class PSAgentMatrixMetaManager {
    */
   public PartitionLocation getPartLocation(PartitionKey partitionKey) {
     List<ParameterServerId> psIds = getPss(partitionKey);
+    if(psIds == null) {
+      return new PartitionLocation(new ArrayList<>());
+    }
+
     int size = psIds.size();
     List<PSLocation> psLocs = new ArrayList<>(size);
     for(int i = 0; i < size; i++) {
@@ -222,8 +226,12 @@ public class PSAgentMatrixMetaManager {
     while (iter.hasNext()) {
       partitionKeys.add(iter.next().getPartitionKey());
     }
-    partitionKeys.sort(new Comparator<PartitionKey>() {
-      @Override public int compare(PartitionKey p1, PartitionKey p2) {
+    partitionKeys.sort((PartitionKey p1, PartitionKey p2) -> {
+      if (p1.getStartCol() < p2.getStartCol()) {
+        return -1;
+      } else if (p1.getStartCol() < p2.getStartCol()) {
+        return 1;
+      } else {
         return 0;
       }
     });
@@ -241,8 +249,8 @@ public class PSAgentMatrixMetaManager {
     List<Integer> rowIndexes) {
     Map<PartitionKey, List<Integer>> partToRowsMap = new HashMap<PartitionKey, List<Integer>>();
 
-    int rowNum = 0;
-    int partNum = 0;
+    int rowNum = rowIndexes.size();
+    int partNum;
     for (int i = 0; i < rowNum; i++) {
       List<PartitionKey> partKeys = getPartitions(matrixId, rowIndexes.get(i));
       partNum = partKeys.size();

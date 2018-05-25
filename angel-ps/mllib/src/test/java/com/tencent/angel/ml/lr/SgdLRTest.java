@@ -38,14 +38,15 @@ public class SgdLRTest {
   private static final Log LOG = LogFactory.getLog(SgdLRTest.class);
   private static String LOCAL_FS = FileSystem.DEFAULT_FS;
   private static String TMP_PATH = System.getProperty("java.io.tmpdir", "/tmp");
+
   static {
     PropertyConfigurator.configure("../conf/log4j.properties");
   }
+
   /**
    * set parameter values of conf
    */
-  @Before
-  public void setConf() throws Exception {
+  @Before public void setConf() throws Exception {
     try {
       // Feature number of train data
       int featureNum = 124;
@@ -77,9 +78,11 @@ public class SgdLRTest {
       conf.set(AngelConf.ANGEL_INPUTFORMAT_CLASS, CombineTextInputFormat.class.getName());
       conf.setBoolean(AngelConf.ANGEL_JOB_OUTPUT_PATH_DELETEONEXIST, true);
       conf.set(AngelConf.ANGEL_JOB_OUTPUT_PATH_DELETEONEXIST, "true");
-      conf.setBoolean(MLConf.ML_INDEX_GET_ENABLE(), true);
+      conf.setInt(AngelConf.ANGEL_PSAGENT_CACHE_SYNC_TIMEINTERVAL_MS, 100);
+
+      conf.setBoolean(MLConf.ML_PULL_WITH_INDEX_ENABLE(), true);
       // Set data format
-      conf.set(MLConf.ML_DATA_FORMAT(), dataFmt);
+      conf.set(MLConf.ML_DATA_INPUT_FORMAT(), dataFmt);
 
       //set angel resource parameters #worker, #task, #PS
       conf.setInt(AngelConf.ANGEL_WORKERGROUP_NUMBER, 1);
@@ -87,28 +90,28 @@ public class SgdLRTest {
       conf.setInt(AngelConf.ANGEL_PS_NUMBER, 1);
 
       //set sgd LR algorithm parameters #feature #epoch
-      conf.set(MLConf.LR_MODEL_TYPE(), modelType);
-      conf.set(MLConf.ML_FEATURE_NUM(), String.valueOf(featureNum));
+      conf.set(MLConf.ML_MODEL_TYPE(), modelType);
+      conf.set(MLConf.ML_FEATURE_INDEX_RANGE(), String.valueOf(featureNum));
       conf.set(MLConf.ML_EPOCH_NUM(), String.valueOf(epochNum));
-      conf.set(MLConf.ML_BATCH_SAMPLE_Ratio(), String.valueOf(spRatio));
+      conf.set(MLConf.ML_BATCH_SAMPLE_RATIO(), String.valueOf(spRatio));
       conf.set(MLConf.ML_VALIDATE_RATIO(), String.valueOf(vRatio));
       conf.set(MLConf.ML_LEARN_RATE(), String.valueOf(learnRate));
       conf.set(MLConf.ML_LEARN_DECAY(), String.valueOf(decay));
-      conf.set(MLConf.ML_REG_L2(), String.valueOf(reg));
+      conf.set(MLConf.ML_LR_REG_L2(), String.valueOf(reg));
+      conf.setLong(MLConf.ML_MODEL_SIZE(), 124L);
     } catch (Exception x) {
       LOG.error("setup failed ", x);
       throw x;
     }
   }
 
-  @Test
-  public void testSGDLR() throws Exception {
+  @Test public void testLR() throws Exception {
     trainOnLocalClusterTest();
     incTrainTest();
     predictTest();
   }
 
-  private void trainOnLocalClusterTest() throws Exception {
+  public void trainOnLocalClusterTest() throws Exception {
     try {
       String inputPath = "./src/test/data/lr/a9a.train";
       String savePath = LOCAL_FS + TMP_PATH + "/model";
@@ -131,9 +134,10 @@ public class SgdLRTest {
     }
   }
 
-  private void incTrainTest() throws Exception {
-    LOG.info("=====================================incTrainTest===================================");
-    try{
+  public void incTrainTest() throws Exception {
+    LOG
+      .info("=====================================incTrainTest===================================");
+    try {
       String inputPath = "./src/test/data/lr/a9a.train";
       String loadPath = LOCAL_FS + TMP_PATH + "/model";
       String savePath = LOCAL_FS + TMP_PATH + "/newmodel";
@@ -158,7 +162,7 @@ public class SgdLRTest {
     }
   }
 
-  private void predictTest() throws Exception {
+  public void predictTest() throws Exception {
     try {
       String inputPath = "./src/test/data/lr/a9a.test";
       String loadPath = LOCAL_FS + TMP_PATH + "/model";

@@ -23,7 +23,7 @@ import org.apache.hadoop.conf.Configuration
 /**
   * Run Factorization Machines train task on Angel
   */
-class FMRunner extends MLRunner{
+class FMRunner extends MLRunner {
   /**
     * Training job to obtain a FM model
     */
@@ -40,5 +40,7 @@ class FMRunner extends MLRunner{
   /**
     * Using a FM model to predict with unobserved samples
     */
-  override def predict(conf: Configuration): Unit = ???
+  override def predict(conf: Configuration): Unit = {
+    super.predict(conf, FMModel(conf), classOf[FMPredictTask])
+  }
 }

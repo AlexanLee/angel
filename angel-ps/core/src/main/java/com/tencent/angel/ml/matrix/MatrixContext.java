@@ -19,9 +19,7 @@ package com.tencent.angel.ml.matrix;
 import com.tencent.angel.conf.MatrixConf;
 import com.tencent.angel.model.output.format.ModelFilesConstent;
 import com.tencent.angel.model.output.format.ModelFilesMeta;
-import com.tencent.angel.ps.LongKeyPartitioner;
-import com.tencent.angel.ps.PSPartitioner;
-import com.tencent.angel.ps.Partitioner;
+import com.tencent.angel.ps.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -47,6 +45,9 @@ public class MatrixContext {
 
   /** Number of cols for this matrix */
   private long colNum;
+
+  /** Number of valid indexes */
+  private long validIndexNum;
 
   /** Number of rows for one block */
   private int maxRowNumInBlock;
@@ -80,8 +81,19 @@ public class MatrixContext {
    * @param colNum matrix column number
    */
   public MatrixContext(String name, int rowNum, long colNum) {
-    this(name, rowNum, colNum, -1, -1, RowType.T_DOUBLE_DENSE);
+    this(name, rowNum, colNum, -1, -1, -1, RowType.T_DOUBLE_DENSE);
   }
+
+  /**
+   * Create a new MatrixContext
+   * @param name matrix name
+   * @param rowNum matrix row number
+   * @param colNum matrix column number
+   */
+  public MatrixContext(String name, int rowNum, long colNum, long validIndexNum) {
+    this(name, rowNum, colNum, validIndexNum, -1, -1, RowType.T_DOUBLE_DENSE);
+  }
+
 
   /**
    * Create a new MatrixContext
@@ -92,7 +104,7 @@ public class MatrixContext {
    * @param maxColNumInBlock matrix block column number
    */
   public MatrixContext(String name, int rowNum, long colNum, int maxRowNumInBlock, long maxColNumInBlock) {
-    this(name, rowNum, colNum, maxRowNumInBlock, maxColNumInBlock, RowType.T_DOUBLE_DENSE);
+    this(name, rowNum, colNum, -1, maxRowNumInBlock, maxColNumInBlock, RowType.T_DOUBLE_DENSE);
   }
 
   /**
@@ -105,15 +117,44 @@ public class MatrixContext {
    * @param rowType matrix row type
    */
   public MatrixContext(String name, int rowNum, long colNum, int maxRowNumInBlock, long maxColNumInBlock, RowType rowType) {
+    this(name, rowNum, colNum, -1, maxRowNumInBlock, maxColNumInBlock, rowType);
+  }
+
+  /**
+   * Create a new MatrixContext
+   * @param name matrix name
+   * @param rowNum matrix row number
+   * @param colNum matrix column number
+   * @param validIndexNum number of valid indexes
+   * @param maxRowNumInBlock matrix block row number
+   * @param maxColNumInBlock matrix block column number
+   */
+  public MatrixContext(String name, int rowNum, long colNum, long validIndexNum, int maxRowNumInBlock, long maxColNumInBlock) {
+    this(name, rowNum, colNum, validIndexNum, maxRowNumInBlock, maxColNumInBlock, RowType.T_DOUBLE_DENSE);
+  }
+
+  /**
+   * Create a new MatrixContext
+   * @param name matrix name
+   * @param rowNum matrix row number
+   * @param colNum matrix column number
+   * @param validIndexNum number of valid indexes
+   * @param maxRowNumInBlock matrix block row number
+   * @param maxColNumInBlock matrix block column number
+   * @param rowType matrix row type
+   */
+  public MatrixContext(String name, int rowNum, long colNum, long validIndexNum, int maxRowNumInBlock, long maxColNumInBlock, RowType rowType) {
     this.name = name;
     this.rowNum = rowNum;
     this.colNum = colNum;
+    this.validIndexNum = validIndexNum;
     this.maxRowNumInBlock = maxRowNumInBlock;
     this.maxColNumInBlock = maxColNumInBlock;
     this.rowType = rowType;
     this.attributes = new HashMap<>();
     this.matrixId = -1;
   }
+
 
   /**
    * Gets name.
@@ -140,6 +181,22 @@ public class MatrixContext {
    */
   public long getColNum() {
     return colNum;
+  }
+
+  /**
+   * Get number of valid indexes
+   * @return number of valid indexes
+   */
+  public long getValidIndexNum() {
+    return validIndexNum;
+  }
+
+  /**
+   * Set number of valid indexes
+   * @param validIndexNum number of valid indexes
+   */
+  public void setValidIndexNum(long validIndexNum) {
+    this.validIndexNum = validIndexNum;
   }
 
   /**
@@ -283,39 +340,13 @@ public class MatrixContext {
       return;
     }
 
-    if(rowType == RowType.T_DOUBLE_SPARSE_LONGKEY) {
-      partitionerClass = LongKeyPartitioner.class;
+    if(rowType == RowType.T_DOUBLE_SPARSE_LONGKEY
+      || rowType == RowType.T_DOUBLE_SPARSE_LONGKEY_COMPONENT
+      || rowType == RowType.T_FLOAT_SPARSE_LONGKEY) {
+      partitionerClass = LongRangePartitioner.class;
     } else {
-      partitionerClass = PSPartitioner.class;
+      partitionerClass = IntRangePartitioner.class;
     }
-  }
-
-  private String checkMatrixParams() {
-    StringBuilder sb = new StringBuilder();
-    if(name == null || name.isEmpty()) {
-      sb.append("matrix name must not be empty");
-      sb.append("\n");
-    }
-    if(rowNum <= 0 || rowNum > Integer.MAX_VALUE) {
-      sb.append("matrix row number must > 0 and <= " + Integer.MAX_VALUE + ", but is ").append(rowNum);
-      sb.append("\n");
-    }
-    if(rowNum > 0 && maxRowNumInBlock > rowNum) {
-      sb.append("matrix block row number must > 0 and < ").append(rowNum).append(", but is ").append(maxRowNumInBlock);
-      sb.append("\n");
-    }
-
-    if(rowType != RowType.T_DOUBLE_SPARSE_LONGKEY)  {
-      if(colNum <= 0 || colNum > Integer.MAX_VALUE) {
-        sb.append("matrix column number must > 0 and <= " + Integer.MAX_VALUE + ", but is ").append(colNum);
-        sb.append("\n");
-      }
-    }
-
-    if(colNum > 0 && maxColNumInBlock > colNum) {
-      sb.append("matrix block column number must > 0 and < ").append(colNum).append(", but is ").append(maxColNumInBlock);
-    }
-    return sb.toString();
   }
 
   /**
@@ -333,9 +364,16 @@ public class MatrixContext {
    */
   public void init(Configuration conf) throws IOException {
     initPartitioner();
+    check();
     String loadPath = attributes.get(MatrixConf.MATRIX_LOAD_PATH);
     if(loadPath != null) {
       loadMatrixMetaFromFile(name, loadPath, conf);
+    }
+  }
+
+  private void check() {
+    if(rowType == RowType.T_DOUBLE_DENSE || rowType == RowType.T_FLOAT_DENSE || rowType == RowType.T_INT_DENSE) {
+      assert colNum > 0;
     }
   }
 
@@ -368,9 +406,29 @@ public class MatrixContext {
   }
 
   @Override public String toString() {
-    return "MatrixContext{" + "name='" + name + '\'' + ", rowNum=" + rowNum + ", colNum=" + colNum
+    return "MatrixContext{" + "name='" + name + '\'' + ", rowNum=" + rowNum + ", colNum=" + colNum + ", validIndexNum=" + validIndexNum
       + ", maxRowNumInBlock=" + maxRowNumInBlock + ", maxColNumInBlock=" + maxColNumInBlock
       + ", partitionerClass=" + partitionerClass + ", rowType=" + rowType + ", attributes="
       + attributes + ", matrixId=" + matrixId + '}';
+  }
+
+  /**
+   * Get estimate sparsity
+   * @return estimate sparsity
+   */
+  public double getEstSparsity() {
+    if(validIndexNum <= 0) {
+      return 0.0;
+    } else {
+      if(colNum <= 0) {
+        if(rowType == RowType.T_DOUBLE_SPARSE || rowType == RowType.T_FLOAT_SPARSE || rowType == RowType.T_INT_SPARSE) {
+          return (double) validIndexNum / rowNum / 2 / Integer.MAX_VALUE;
+        } else {
+          return (double) validIndexNum / rowNum / 2 / Long.MAX_VALUE;
+        }
+      } else {
+        return (double) validIndexNum / rowNum / colNum;
+      }
+    }
   }
 }

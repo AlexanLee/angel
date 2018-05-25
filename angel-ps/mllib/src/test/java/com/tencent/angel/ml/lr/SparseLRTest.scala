@@ -57,6 +57,7 @@ class SparseLRTest {
     conf.setInt(AngelConf.ANGEL_WORKERGROUP_NUMBER, 1)
     conf.setInt(AngelConf.ANGEL_WORKER_TASK_NUMBER, 1)
     conf.setInt(AngelConf.ANGEL_PS_NUMBER, 1)
+    conf.setInt(AngelConf.ANGEL_PSAGENT_CACHE_SYNC_TIMEINTERVAL_MS, 100)
 
     // Set memory storage
     conf.set(AngelConf.ANGEL_TASK_DATA_STORAGE_LEVEL, "memory")
@@ -69,21 +70,22 @@ class SparseLRTest {
     // Total iteration number
     val epochNum: Int = 5
 
-    conf.setInt(ML_FEATURE_NUM, featureNum)
+    conf.setInt(ML_FEATURE_INDEX_RANGE, featureNum)
     conf.setInt(ML_EPOCH_NUM, epochNum)
-    conf.setInt(ML_WORKER_THREAD_NUM, 4)
-    conf.set(ML_DATA_FORMAT, "libsvm")
+    conf.setInt(ANGEL_WORKER_THREAD_NUM, 4)
+    conf.set(ML_DATA_INPUT_FORMAT, "libsvm")
 
   }
 
   @Test
-  def testOnLocalCluster(): Unit= {
+  def testOnLocalCluster(): Unit = {
     trainOnLocalClusterTest()
     predictTest()
   }
 
+
   def trainOnLocalClusterTest(): Unit = {
-    val inputPath: String = "./src/test/data/lr/a9a.train_label";
+    val inputPath: String = "./src/test/data/lr/a9a.train_label"
 
     // Set training data path
     conf.set(AngelConf.ANGEL_TRAIN_DATA_PATH, inputPath)
@@ -95,7 +97,7 @@ class SparseLRTest {
     val runner = new SparseLRRunner
     runner.train(conf)
   }
-
+  
   def predictTest() {
     val inputPath: String = "./src/test/data/lr/a9a.train_label"
     val loadPath: String = LOCAL_FS + TMP_PATH + "/admmlrmodel"
@@ -110,7 +112,7 @@ class SparseLRTest {
     // Set actionType prediction
     conf.set(AngelConf.ANGEL_ACTION_TYPE, MLConf.ANGEL_ML_PREDICT)
 
-    val runner= new SparseLRRunner
+    val runner = new SparseLRRunner
     runner.predict(conf)
   }
 

@@ -17,6 +17,8 @@
 
 package com.tencent.angel.ml.classification.lr
 
+import com.tencent.angel.conf.AngelConf
+import com.tencent.angel.exception.AngelException
 import com.tencent.angel.ml.MLRunner
 import com.tencent.angel.ml.conf.MLConf
 import com.tencent.angel.ml.matrix.RowType
@@ -29,7 +31,7 @@ import org.apache.hadoop.conf.Configuration
 
 class LRRunner extends MLRunner {
   private val LOG = LogFactory.getLog(classOf[LRRunner])
-  
+
   /**
     * Run LR train task
     *
@@ -37,18 +39,9 @@ class LRRunner extends MLRunner {
     */
   override
   def train(conf: Configuration): Unit = {
-    val modelType = RowType.valueOf(conf.get(MLConf.LR_MODEL_TYPE, RowType.T_DOUBLE_SPARSE.toString))
-    LOG.info("model type=" + modelType)
-    modelType match {
-      case RowType.T_DOUBLE_SPARSE_LONGKEY | RowType.T_DOUBLE_SPARSE_LONGKEY_COMPONENT => {
-        train(conf, LRModel(conf), classOf[LRTrain64Task])
-      }
-      case _ => {
-        train(conf, LRModel(conf), classOf[LRTrainTask])
-      }
-    }
+    train(conf, LRModel(conf), classOf[LRTrainTask])
   }
-  
+
   /*
    * Run LR predict task
    * @param conf: configuration of algorithm and resource
@@ -57,20 +50,14 @@ class LRRunner extends MLRunner {
   def predict(conf: Configuration): Unit = {
     super.predict(conf, LRModel(conf), classOf[LRPredictTask])
   }
-  
+
   /*
    * Run LR incremental train task
    * @param conf: configuration of algorithm and resource
    */
   def incTrain(conf: Configuration): Unit = {
-    val modelType = RowType.valueOf(conf.get(MLConf.LR_MODEL_TYPE, RowType.T_DOUBLE_SPARSE.toString))
-    modelType match {
-      case RowType.T_DOUBLE_SPARSE_LONGKEY | RowType.T_DOUBLE_SPARSE_LONGKEY_COMPONENT => {
-        train(conf, LRModel(conf), classOf[LRTrain64Task])
-      }
-      case _ => {
-        train(conf, LRModel(conf), classOf[LRTrainTask])
-      }
-    }
+    val path = conf.get(AngelConf.ANGEL_LOAD_MODEL_PATH)
+    if (path == null) throw new AngelException("parameter '" + AngelConf.ANGEL_LOAD_MODEL_PATH + "' should be set to load model")
+    train(conf, LRModel(conf), classOf[LRTrainTask])
   }
 }

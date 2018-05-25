@@ -19,6 +19,7 @@
 package com.tencent.angel.ml.GBDT
 
 import com.tencent.angel.conf.AngelConf
+import com.tencent.angel.exception.AngelException
 import com.tencent.angel.ml.MLRunner
 import com.tencent.angel.ml.conf.MLConf
 import org.apache.commons.logging.LogFactory
@@ -26,7 +27,7 @@ import org.apache.hadoop.conf.Configuration
 
 class GBDTRunner extends MLRunner {
 
-  var LOG = LogFactory.getLog(classOf[GBDTRunner])
+  val LOG = LogFactory.getLog(classOf[GBDTRunner])
 
   var featureNum: Int = 0
   var featureNonzero: Int = 0
@@ -36,22 +37,22 @@ class GBDTRunner extends MLRunner {
   var featureSampleRatio: Float = 0.0f
 
   override def train(conf: Configuration): Unit = {
-    var featNum = conf.getInt(MLConf.ML_FEATURE_NUM, 10000)
-
+    var indexRange = conf.getLong(MLConf.ML_FEATURE_INDEX_RANGE, MLConf.DEFAULT_ML_FEATURE_INDEX_RANGE)
     val psNumber = conf.getInt(AngelConf.ANGEL_PS_NUMBER, 1)
 
-    if (featNum % psNumber != 0) {
-      featNum = (featNum / psNumber + 1) * psNumber
-      conf.setInt(MLConf.ML_FEATURE_NUM, featNum)
-      LOG.info(s"PS num: ${psNumber}, true feat num: ${featNum}")
+    if (indexRange % psNumber != 0) {
+      indexRange = (indexRange / psNumber + 1) * psNumber
+      conf.setLong(MLConf.ML_FEATURE_INDEX_RANGE, indexRange)
+      LOG.info(s"PS num: ${psNumber}, true feat num: ${indexRange}")
     }
 
-    conf.setInt(MLConf.ML_FEATURE_NUM, featNum)
+    conf.setLong(MLConf.ML_FEATURE_INDEX_RANGE, indexRange)
 
     train(conf, GBDTModel(conf), classOf[GBDTTrainTask])
   }
 
   override def predict(conf: Configuration) {
+    conf.setInt("angel.worker.matrix.transfer.request.timeout.ms", 60000)
     super.predict(conf, GBDTModel(conf), classOf[GBDTPredictTask])
   }
 
@@ -59,6 +60,9 @@ class GBDTRunner extends MLRunner {
     * Incremental training job to obtain a model based on a trained model
     */
   override def incTrain(conf: Configuration): Unit = {
+    conf.setInt("angel.worker.matrix.transfer.request.timeout.ms", 60000)
+    val path = conf.get(AngelConf.ANGEL_LOAD_MODEL_PATH)
+    if (path == null) throw new AngelException("parameter '" + AngelConf.ANGEL_LOAD_MODEL_PATH + "' should be set to load model")
     train(conf)
   }
 }

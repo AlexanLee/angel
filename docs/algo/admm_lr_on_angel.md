@@ -74,15 +74,16 @@ ADMM在Angel上实现的一般步骤为：
 ## 3. 运行 & 性能
 
 ###  **输入格式**
-  * ml.feature.num：特征向量的维度   
+  * ml.feature.index.range：特征向量的维度
+  * ml.model.size: 模型大小, 对于一些稀疏模型, 存在一些无效维度, 即所有样本要这一维度上的取值匀为0. ml.model.size = ml.feature.index.range - number of invalidate indices
   * ml.data.type：支持"dummy"、"libsvm"两种数据格式，具体参考[Angel数据格式](data_format.md)
 
 ### **参数说明**
 
 
 * **算法参数**  
-  * ml.epoch.num：迭代次数   
-  * ml.reg.l1: L1惩罚系数
+  * ml.epoch.num：迭代次数
+  * ml.lr.reg.l1: L1惩罚系数
   * rho: rho
   * ml.worker.thread.num: 子模型训练并行度
 
@@ -111,13 +112,12 @@ ADMM在Angel上实现的一般步骤为：
     --angel.save.model.path $model_path \
     --angel.log.path $logpath \
     --ml.epoch.num 10 \
-    --ml.batch.num 10 \
-    --ml.feature.num 10000 \
-    --ml.validate.ratio 0.1 \
+    --ml.feature.index.range 10000 \
+    --ml.data.validate.ratio 0.1 \
     --ml.data.type dummy \
     --ml.learn.rate 1 \
     --ml.learn.decay 0.1 \
-    --ml.reg.l2 0 \
+    --ml.lr.reg.l1 0 \
     --angel.workergroup.number 3 \
     --angel.worker.task.number 3 \
     --angel.ps.number 1 \
