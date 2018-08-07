@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making Angel available.
  *
- * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
+ * Copyright (C) 2017-2018 THL A29 Limited, a Tencent company. All rights reserved.
  *
- * Licensed under the BSD 3-Clause License (the "License"); you may not use this file except in
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in 
  * compliance with the License. You may obtain a copy of the License at
  *
- * https://opensource.org/licenses/BSD-3-Clause
+ * https://opensource.org/licenses/Apache-2.0
  *
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
@@ -17,6 +17,7 @@
 
 package com.tencent.angel.ml.lda
 
+import com.tencent.angel.conf.AngelConf
 import com.tencent.angel.ml.lda.algo.{CSRTokens, Document}
 import com.tencent.angel.ml.math.vector.{DenseIntVector, SparseIntVector}
 import com.tencent.angel.worker.storage.MemoryDataBlock
@@ -118,8 +119,10 @@ class LDATrainTask(val ctx: TaskContext) extends BaseTask[LongWritable, Text, Do
 
     // save values
     if (model.saveWordTopic) learner.saveWordTopic(model)
-    if (model.saveDocTopic) learner.saveDocTopic(tokens, model)
-    if (model.saveDocTopicDistribution) learner.saveDocTopicDistribution(tokens, model)
+    if (model.saveDocTopic) learner.saveDocTopic(
+      conf.get(AngelConf.ANGEL_SAVE_MODEL_PATH), tokens, model)
+    if (model.saveDocTopicDistribution) learner.saveDocTopicDistribution(
+      conf.get(AngelConf.ANGEL_SAVE_MODEL_PATH), tokens, model)
     if (model.saveTopicWordDistribution) learner.saveWordTopicDistribution(model)
   }
 

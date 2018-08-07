@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making Angel available.
  *
- * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
+ * Copyright (C) 2017-2018 THL A29 Limited, a Tencent company. All rights reserved.
  *
- * Licensed under the BSD 3-Clause License (the "License"); you may not use this file except in
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in 
  * compliance with the License. You may obtain a copy of the License at
  *
- * https://opensource.org/licenses/BSD-3-Clause
+ * https://opensource.org/licenses/Apache-2.0
  *
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
@@ -535,7 +535,7 @@ class LDALearner(ctx: TaskContext, model: LDAModel, data: CSRTokens) extends MLL
       val tmp = HdfsUtil.toTmpPath(dest)
       val out = new BufferedOutputStream(fs.create(tmp))
 
-      val param = new GetRowsParam(model.wtMat.getMatrixId(), index)
+      val param = new GetColumnParam(model.wtMat.getMatrixId(), index)
       val func = new GetColumnFunc(param)
       val result = model.wtMat.get(func).asInstanceOf[ColumnGetResult]
 
@@ -570,9 +570,8 @@ class LDALearner(ctx: TaskContext, model: LDAModel, data: CSRTokens) extends MLL
     }
   }
 
-  def saveDocTopic(data: CSRTokens, model: LDAModel): Unit = {
-    LOG.info("save doc topic ")
-    val dir = conf.get(AngelConf.ANGEL_SAVE_MODEL_PATH)
+  def saveDocTopic(dir: String, data: CSRTokens, model: LDAModel): Unit = {
+    LOG.info("save doc topic to " + dir)
     val base = dir + "/" + "doc_topic"
     val part = ctx.getTaskIndex
 
@@ -597,9 +596,9 @@ class LDALearner(ctx: TaskContext, model: LDAModel, data: CSRTokens) extends MLL
     fs.rename(tmp, dest)
   }
 
-  def saveDocTopicDistribution(data: CSRTokens, model: LDAModel): Unit = {
-    LOG.info("save doc topic distribution")
-    val dir = conf.get(AngelConf.ANGEL_SAVE_MODEL_PATH)
+  def saveDocTopicDistribution(dir: String, data: CSRTokens, model: LDAModel): Unit = {
+    LOG.info("save doc topic distribution to " + dir)
+//    val dir = conf.get(AngelConf.ANGEL_SAVE_MODEL_PATH)
     val base = dir + "/" + "doc_topic_distribution"
     val part = ctx.getTaskIndex
 

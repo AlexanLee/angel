@@ -1,17 +1,18 @@
 /*
  * Tencent is pleased to support the open source community by making Angel available.
  *
- * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
+ * Copyright (C) 2017-2018 THL A29 Limited, a Tencent company. All rights reserved.
  *
- * Licensed under the BSD 3-Clause License (the "License"); you may not use this file except in
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in 
  * compliance with the License. You may obtain a copy of the License at
  *
- * https://opensource.org/licenses/BSD-3-Clause
+ * https://opensource.org/licenses/Apache-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed under the License is
- * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
+ *
  */
 
 package com.tencent.angel.psagent;
@@ -386,6 +387,68 @@ public class PSAgent {
         PSAgentContext.get().clear();
       }
     }
+  }
+
+  public void reset() {
+    stopped.set(false);
+    psAgentInitFinishedFlag.set(false);
+    LOG.info("stop heartbeat thread!");
+    if (heartbeatThread != null) {
+      heartbeatThread.interrupt();
+      try {
+        heartbeatThread.join();
+      } catch (InterruptedException ie) {
+        LOG.warn("InterruptedException while stopping heartbeatThread:", ie);
+      }
+      heartbeatThread = null;
+    }
+
+    LOG.info("stop op log merger");
+    if (opLogCache != null) {
+      opLogCache.stop();
+      opLogCache = null;
+    }
+
+    LOG.info("stop clock cache");
+    if (clockCache != null) {
+      clockCache.stop();
+      clockCache = null;
+    }
+
+    LOG.info("stop matrix cache");
+    if (matricesCache != null) {
+      matricesCache.stop();
+      matricesCache = null;
+    }
+
+    LOG.info("stop matrix client adapater");
+    if (matrixClientAdapter != null) {
+      matrixClientAdapter.stop();
+      matrixClientAdapter = null;
+    }
+
+    LOG.info("stop rpc dispacher");
+    if (matrixTransClient != null) {
+      matrixTransClient.stop();
+      matrixTransClient = null;
+    }
+
+    controlConnectManager = null;
+    masterClient = null;
+    locationManager = null;
+    location = null;
+    id = -1;
+    psControlClientManager = null;
+    if(matrixMetaManager != null) {
+      matrixMetaManager.clear();
+      matrixMetaManager = null;
+    }
+
+    if(matrixStorageManager != null) {
+      matrixStorageManager.clear();
+      matrixStorageManager = null;
+    }
+    consistencyController = null;
   }
 
   protected void heartbeat() throws ServiceException {

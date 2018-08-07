@@ -1,17 +1,18 @@
 /*
  * Tencent is pleased to support the open source community by making Angel available.
- * 
- * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
- * 
- * Licensed under the BSD 3-Clause License (the "License"); you may not use this file except in
+ *
+ * Copyright (C) 2017-2018 THL A29 Limited, a Tencent company. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in 
  * compliance with the License. You may obtain a copy of the License at
- * 
- * https://opensource.org/licenses/BSD-3-Clause
- * 
+ *
+ * https://opensource.org/licenses/Apache-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
+ *
  */
 
 package com.tencent.angel.psagent.matrix.transport;
@@ -19,7 +20,6 @@ package com.tencent.angel.psagent.matrix.transport;
 import com.google.protobuf.ServiceException;
 import com.tencent.angel.PartitionKey;
 import com.tencent.angel.common.location.Location;
-import com.tencent.angel.common.location.LocationManager;
 import com.tencent.angel.common.transport.ChannelManager;
 import com.tencent.angel.conf.AngelConf;
 import com.tencent.angel.ml.matrix.PartitionLocation;
@@ -35,6 +35,7 @@ import com.tencent.angel.ps.impl.matrix.ServerPartition;
 import com.tencent.angel.ps.impl.matrix.ServerRow;
 import com.tencent.angel.psagent.PSAgentContext;
 import com.tencent.angel.psagent.matrix.oplog.cache.RowUpdateSplit;
+import com.tencent.angel.psagent.matrix.transport.adapter.RowsUpdateSplit;
 import com.tencent.angel.utils.ByteBufUtils;
 import com.tencent.angel.utils.StringUtils;
 import io.netty.bootstrap.Bootstrap;
@@ -52,7 +53,6 @@ import org.apache.hadoop.conf.Configuration;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.nio.ByteOrder;
 import java.util.*;
 import java.util.Map.Entry;
@@ -471,6 +471,18 @@ public class MatrixTransportClient implements MatrixTransportInterface {
       queue = putItemQueues.get(serverId);
     }
     queue.add(request);
+  }
+
+  public FutureResult<VoidResult> plus(PartitionKey partKey, RowsUpdateSplit split) {
+    ParameterServerId serverId = PSAgentContext.get().getMatrixMetaManager().getMasterPS(partKey);
+    PlusRowsRequest request =
+      new PlusRowsRequest(-1, -1, partKey, split, false);
+
+    FutureResult<VoidResult> future = new FutureResult<>();
+    requestToResultMap.put(request, future);
+    addToPutQueueForServer(serverId, request);
+    startPut();
+    return future;
   }
 
   class PSLocRefresher extends Thread {
@@ -1007,7 +1019,6 @@ public class MatrixTransportClient implements MatrixTransportInterface {
       if(item instanceof PartitionRequest) {
         rpcContext.before(item.getContext().getServerId());
       }
-      LOG.debug("submit request seqId=" + seqId + ",request=" + item);
       seqIdToRequestMap.put(seqId, item);
       requestThreadPool.execute(new Requester(item, seqId));
     }

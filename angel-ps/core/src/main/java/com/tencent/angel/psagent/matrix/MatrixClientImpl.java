@@ -1,19 +1,19 @@
 /*
  * Tencent is pleased to support the open source community by making Angel available.
- * 
- * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
- * 
- * Licensed under the BSD 3-Clause License (the "License"); you may not use this file except in
+ *
+ * Copyright (C) 2017-2018 THL A29 Limited, a Tencent company. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in 
  * compliance with the License. You may obtain a copy of the License at
- * 
- * https://opensource.org/licenses/BSD-3-Clause
- * 
+ *
+ * https://opensource.org/licenses/Apache-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
+ *
  */
-
 package com.tencent.angel.psagent.matrix;
 
 import com.tencent.angel.exception.AngelException;
@@ -42,13 +42,60 @@ public class MatrixClientImpl extends MatrixClient {
 
   @Override
   public void increment(TVector row) throws AngelException {
-    row.setMatrixId(matrixId);
-    PSAgentContext.get().getOpLogCache().increment(taskContext, row);
+    increment(row, false);
+  }
+
+  @Override public void increment(TVector row, boolean disableCache) throws AngelException {
+    try {
+      row.setMatrixId(matrixId);
+      if(disableCache) {
+        PSAgentContext.get().getMatrixClientAdapter().increment(matrixId, row.getRowId(), row);
+      } else {
+        PSAgentContext.get().getOpLogCache().increment(taskContext, row);
+      }
+    } catch (Throwable x) {
+      throw new AngelException(x);
+    }
   }
 
   @Override
   public void increment(TMatrix matrix) throws AngelException {
-    PSAgentContext.get().getOpLogCache().increment(taskContext, matrix);
+    increment(matrix, false);
+  }
+
+  @Override public void increment(TMatrix matrix, boolean disableCache) throws AngelException {
+    try {
+      matrix.setMatrixId(matrixId);
+      if(disableCache) {
+        PSAgentContext.get().getMatrixClientAdapter().increment(matrixId, matrix);
+      } else {
+        PSAgentContext.get().getOpLogCache().increment(taskContext, matrix);
+      }
+    } catch (Throwable x) {
+      throw new AngelException(x);
+    }
+  }
+
+  @Override public void increment(TVector[] rows) throws AngelException {
+    increment(rows, false);
+  }
+
+  @Override public void increment(TVector[] rows, boolean disableCache) throws AngelException {
+    try {
+      for(int i = 0; i < rows.length; i++) {
+        rows[i].setMatrixId(matrixId);
+      }
+
+      if(disableCache) {
+        PSAgentContext.get().getMatrixClientAdapter().increment(matrixId, rows);
+      } else {
+        for(int i = 0; i < rows.length; i++) {
+          PSAgentContext.get().getOpLogCache().increment(taskContext, rows[i]);
+        }
+      }
+    } catch (Throwable x) {
+      throw new AngelException(x);
+    }
   }
 
   @Override
@@ -87,9 +134,15 @@ public class MatrixClientImpl extends MatrixClient {
   }
 
   @Override
-  public void increment(int rowIndex, TVector delta) throws AngelException {
-    delta.setRowId(rowIndex);
-    increment(delta);
+  public void increment(int rowId, TVector row) throws AngelException {
+    increment(rowId, row, false);
+  }
+
+  @Override public void increment(int rowId, TVector row, boolean disableCache)
+    throws AngelException {
+    row.setMatrixId(matrixId);
+    row.setRowId(rowId);
+    increment(row, disableCache);
   }
 
   @Override

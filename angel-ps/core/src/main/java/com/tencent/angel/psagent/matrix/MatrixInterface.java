@@ -1,17 +1,18 @@
 /*
  * Tencent is pleased to support the open source community by making Angel available.
- * 
- * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
- * 
- * Licensed under the BSD 3-Clause License (the "License"); you may not use this file except in
+ *
+ * Copyright (C) 2017-2018 THL A29 Limited, a Tencent company. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in 
  * compliance with the License. You may obtain a copy of the License at
- * 
- * https://opensource.org/licenses/BSD-3-Clause
- * 
+ *
+ * https://opensource.org/licenses/Apache-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
+ *
  */
 
 package com.tencent.angel.psagent.matrix;
@@ -61,27 +62,73 @@ public interface MatrixInterface {
   /**
    * Use a update vector which has same dimension with matrix row to increment the matrix row.
    * 
-   * @param rowIndex row index
-   * @param delta the update vector
+   * @param rowId row index
+   * @param row the update vector
    * @throws AngelException
    */
-  void increment(int rowIndex, TVector delta) throws AngelException;
+  void increment(int rowId, TVector row) throws AngelException;
+
+  /**
+   * Use a update vector which has same dimension with matrix row to increment the matrix row.
+   *
+   * @param rowId row index
+   * @param row the update vector
+   * @param disableCache true means does not stored the update in cache, just increment the model stored in pss
+   * @throws AngelException
+   */
+  void increment(int rowId, TVector row, boolean disableCache) throws AngelException;
 
   /**
    * Use a update vector which has same dimension with matrix row to increment the matrix row.
    * 
-   * @param delta the update vector
+   * @param row the update vector
    * @throws AngelException
    */
-  void increment(TVector delta) throws AngelException;
+  void increment(TVector row) throws AngelException;
+
+  /**
+   * Use a update vector which has same dimension with matrix row to increment the matrix row.
+   *
+   * @param row the update vector
+   * @param disableCache true means does not stored the update in cache, just increment the model stored in pss
+   * @throws AngelException
+   */
+  void increment(TVector row, boolean disableCache) throws AngelException;
 
   /**
    * Use a update matrix which has same dimension with the matrix to increment the matrix.
    * 
-   * @param delta the update matrix
+   * @param matrix the update matrix
    * @throws AngelException
    */
-  void increment(TMatrix delta) throws AngelException;
+  void increment(TMatrix matrix) throws AngelException;
+
+  /**
+   * Use a update matrix which has same dimension with the matrix to increment the matrix.
+   *
+   * @param matrix the update matrix
+   * @param disableCache true means does not stored the update in cache, just increment the model stored in pss
+   * @throws AngelException
+   */
+  void increment(TMatrix matrix, boolean disableCache) throws AngelException;
+
+  /**
+   * Use a update matrix which has same dimension with the matrix to increment the matrix.
+   *
+   * @param rows the update rows
+   * @throws AngelException
+   */
+  void increment(TVector [] rows) throws AngelException;
+
+  /**
+   * Use a update matrix which has same dimension with the matrix to increment the matrix.
+   *
+   * @param rows the update rows
+   * @param disableCache true means does not stored the update in cache, just increment the model stored in pss
+   * @throws AngelException
+   */
+  void increment(TVector [] rows, boolean disableCache) throws AngelException;
+
 
   /**
    * Get a matrix row.
