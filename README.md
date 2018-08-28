@@ -1,8 +1,8 @@
 ![](assets/angel_logo.png)
 
 
-[![license](http://img.shields.io/badge/license-BSD3-blue.svg?style=flat)](https://github.com/tencent/angel/blob/master/LICENSE)
-[![Release Version](https://img.shields.io/badge/release-1.4.0-red.svg)](https://github.com/tencent/angel/releases)
+[![license](http://img.shields.io/badge/license-Apache2.0-blue.svg?style=flat)](https://github.com/tencent/angel/blob/master/LICENSE)
+[![Release Version](https://img.shields.io/badge/release-2.0.0-red.svg)](https://github.com/tencent/angel/releases)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/tencent/angel/pulls)
 
 [(English Documents Available)](./README_en.md)
@@ -11,7 +11,7 @@
 
 **Angel**的核心设计理念围绕**模型**。它将高维度的大模型合理切分到多个参数服务器节点，并通过高效的**模型更新接口和运算函数**，以及灵活的**同步协议**，轻松实现各种高效的机器学习算法。
 
-**Angel**基于**Java**和**Scala**开发，能在社区的**Yarn**上直接调度运行，并基于**PS Service**，支持**Spark on Angel**，未来将会支持图计算和深度学习框架集成。
+**Angel**基于**Java**和**Scala**开发，能在社区的**Yarn**上直接调度运行，并基于**PS Service**，支持**Spark on Angel**，集成了部分图计算和深度学习算法。
 
 欢迎对机器学习有兴趣的同仁一起贡献代码，提交Issues或者Pull Requests。请先查阅: [Angel Contribution Guide](https://github.com/Tencent/angel/blob/master/CONTRIBUTING.md)
 
@@ -36,32 +36,44 @@
 * [Angel编程手册](./docs/programmers_guide/angel_programing_guide.md)
 * [Spark on Angel编程手册](./docs/programmers_guide/spark_on_angel_programing_guide.md)
 
+## Deep Learning Architexture
+* [Angel中的计算图](./docs/basic/computinggraph_on_angel.md)
+* [Angel中的层](./docs/basic/layers_on_angel.md)
+* [Angel中优化器](./docs/basic/optimizer_on_angel.md)
+* [Angel中的损失函数](./docs/basic/lossfunc_on_angel.md)
+* [Angel中的传输函数](./docs/basic/transfunc_on_angel.md)
 
 ## Quick Start
 * [Angel入门](./docs/tutorials/angel_ps_quick_start.md)
 * [Spark on Angel入门](./docs/tutorials/spark_on_angel_quick_start.md)
-* [PyAngel入门](./docs/tutorials/pyangel_quick_start.md)
+* [Angel Json配置](./docs/basic/json_conf.md)
 
 ## Algorithm
 
 * **Angel**
-	* [Logistic Regression](./docs/algo/lr_on_angel.md) ([ADMM](./docs/algo/admm_lr_on_angel.md))
-	* [Large Scale Piece-wise Linear Model/Mix Logistic Regression](./docs/algo/mlr_on_angel.md)
-	* [Factorization Machine](./docs/algo/fm_on_angel.md)
-	* [Matrix Factorization](./docs/algo/mf_on_angel.md)
-	* [SVM](./docs/algo/svm_on_angel.md)
-	* [KMeans](./docs/algo/kmeans_on_angel.md)
-	* [GBDT](./docs/algo/gbdt_on_angel.md)
-	* [LDA\*](./docs/algo/lda_on_angel.md) ([WrapLDA](./docs/algo/wrap_lda_on_angel.md))
-
+	* **Traditional Machine Learning Methods**
+		* [Logistic Regression(LR)](./docs/algo/lr_on_angel.md)
+		* [Support Vector Machine(SVM)](./docs/algo/svm_on_angel.md)
+		* [Factorization Machine(FM)](./docs/algo/fm_on_angel.md)
+		* [Linear Regression](./docs/algo/linear_on_angel.md)
+		* [Robust Regression](./docs/algo/robust_on_angel.md)
+		* [KMeans](./docs/algo/kmeans_on_angel.md)
+		* [GBDT](./docs/algo/gbdt_on_angel.md)
+		* [LDA\*](./docs/algo/lda_on_angel.md) ([WrapLDA](./docs/algo/wrap_lda_on_angel.md))
+	* **Deep Learning Methods**
+		* [Deep Neural Network(DNN)](./docs/algo/dnn_on_angel.md)
+		* [Mix Logistic Regression(MLR)](./docs/algo/mlr_on_angel.md)
+		* [Deep And Wide(DAW)](./docs/algo/daw_on_angel.md)
+		* [Deep Factorization Machine(DeepFM)](./docs/algo/deepfm_on_angel.md)
+		* [Neural Factorization Machine(NFM)](./docs/algo/nfm_on_angel.md)
+		* [Product Neural Network(PNN)](./docs/algo/pnn_on_angel.md)
 * **Spark on Angel**
-	* [Logistic Regression](./docs/algo/sona/lr_sona.md)
-	* [Sparse LR with FTRL](./docs/algo/sona/sparselr_ftrl.md)
-	* [GBDT](./docs/algo/sona/gbdt_sona.md)
-	* [KMeans](.docs/algo/sona/kmeans_sona.md)
-
-* **在线学习(Online Learning)**
-	* [FTRL](./docs/algo/ftrl_lr_spark.md)
+	* **Online Learning**
+		* [FTRL](./docs/algo/ftrl_lr_spark.md)
+	* **Offline Learning**
+		* [Logistic Regression(LR)](./docs/algo/sona/lr_sona.md)
+		* [Word2Vec](./docs/algo/sona/word2vec_sona.md)
+		* [LINE](./docs/algo/sona/line_sona.md)
 
 
 ## Deployment

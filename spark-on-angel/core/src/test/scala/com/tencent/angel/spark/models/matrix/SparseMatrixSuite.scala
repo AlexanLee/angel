@@ -15,11 +15,14 @@
  *
  */
 
+
 package com.tencent.angel.spark.models.matrix
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
+import com.tencent.angel.spark.models.CompatibleImplicit._
+import com.tencent.angel.spark.util.PSMatrixImplicit._
 
 import com.tencent.angel.spark.{PSFunSuite, SharedPSContext}
 
@@ -27,7 +30,6 @@ class SparseMatrixSuite extends PSFunSuite with SharedPSContext {
 
   private val rows = 10
   private val cols = 10
-  private val zeroArray = Array.fill(cols)(0.0)
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -35,15 +37,15 @@ class SparseMatrixSuite extends PSFunSuite with SharedPSContext {
   }
 
   test("push && increment") {
-    val sparseMatrix = SparsePSMatrix(rows, cols)
+    val sparseMatrix = PSMatrix.sparse(rows, cols)
     val rand = new Random()
 
     val points = new ArrayBuffer[(Int, Long, Double)]()
 
     val pairSet = new mutable.HashSet[(Int, Long)]()
-    (0 until rows / 2).foreach { i =>
+    (0 until rows / 2).foreach { _ =>
       val rowId = rand.nextInt(rows)
-      (0 until cols / 2).foreach { j =>
+      (0 until cols / 2).foreach { _ =>
         val colId = rand.nextInt(cols)
         if (!pairSet.contains(Tuple2(rowId, colId))) {
           pairSet.add(Tuple2(rowId, colId))
@@ -54,7 +56,6 @@ class SparseMatrixSuite extends PSFunSuite with SharedPSContext {
 
     // push
     sparseMatrix.push(points.toArray)
-
     var psMatrix = (0 until rows).toArray.map { rowId =>
       sparseMatrix.pull(rowId)
     }
@@ -66,6 +67,7 @@ class SparseMatrixSuite extends PSFunSuite with SharedPSContext {
 
     // increment
     sparseMatrix.increment(points.toArray)
+
 
     psMatrix = (0 until rows).toArray.map { rowId =>
       sparseMatrix.pull(rowId)
