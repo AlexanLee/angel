@@ -55,31 +55,37 @@ LR on Angel支持“dense”、“libsvm”、“dummy”三种数据格式。�
 * 参数说明            
 	* ml.epoch.num：迭代轮数
     * ml.feature.index.range:特征索引范围
-    * ml.feature.num：特征维数
+    * ml.model.size：特征维数
     * ml.data.validate.ratio：验证集采样率
     * ml.data.type：数据类型，分“libsvm”和“dummy”两种
     * ml.learn.rate：学习率
-    * ml.learn.decay：学习率衰减系数
-    * ml.reg.l2:l2正则项系数
+    * ml.opt.decay.class.name：学习率衰减系类
+    * ml.opt.decay.on.batch: 是否对每个mini batch衰减
+    * ml.opt.decay.alpha: 学习率衰减参数alpha
+    * ml.opt.decay.beta: 学习率衰减参数beta
+    * ml.opt.decay.intervals: 学习率衰减参数intervals
+    * ml.reg.l2: l2正则项系数
     * action.type：任务类型，训练用"train",预测用"predict"
-    * ml.sparseinputlayer.optimizer：优化器类型，可选“adam”,"ftrl"和“momentum”
-  
+    * ml.inputlayer.optimizer：优化器类型，可选"adam","ftrl"和"momentum"
+    * ml.data.label.trans.class: 是否要对标签进行转换, 默认为"NoTrans", 可选项为"ZeroOneTrans"(转为0-1), "PosNegTrans"(转为正负1), "AddOneTrans"(加1), "SubOneTrans"(减1). 
+    * ml.data.label.trans.threshold: "ZeroOneTrans"(转为0-1), "PosNegTrans"(转为正负1)这两种转还要以设一个阈值, 大于阈值的为1, 阈值默认为0
+    * ml.data.posneg.ratio: 正负样本重采样比例, 对于正负样本相差较大的情况有用(如5倍以上)
+
 * 提交命令
 你可以通过下面命令向Yarn集群提交LR算法训练任务:
 ```java
 ../../bin/angel-submit \
     -Dml.epoch.num=20 \
     -Dangel.app.submit.class=com.tencent.angel.ml.core.graphsubmit.GraphRunner \
-    -Dml.model.class.name=com.tencent.angel.ml.classification.SoftmaxRegression \
+    -Dml.model.class.name=com.tencent.angel.ml.classification.LogisticRegression \
     -Dml.feature.index.range=$featureNum \
-    -Dml.feature.num=$featureNum \
+    -Dml.model.size=$featureNum \
     -Dml.data.validate.ratio=0.1 \ 
     -Dml.data.type=libsvm \
     -Dml.learn.rate=0.1 \
-    -Dml.learn.decay=0.5 \
     -Dml.reg.l2=0.03 \
     -Daction.type=train \
-    -Dml.sparseinputlayer.optimizer=ftrl \
+    -Dml.inputlayer.optimizer=ftrl \
     -Dangel.train.data.path=$input_path \
     -Dangel.workergroup.number=20 \
     -Dangel.worker.memory.mb=20000 \

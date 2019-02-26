@@ -18,10 +18,12 @@
 
 package com.tencent.angel.ml.core.conf
 
+import com.tencent.angel.RunningMode
 import com.tencent.angel.conf.AngelConf
 import com.tencent.angel.exception.AngelException
 import com.tencent.angel.ml.matrix.RowType
 import com.tencent.angel.ml.core.utils.NetUtils
+import com.tencent.angel.ml.math2.utils.Constant
 import org.apache.commons.logging.LogFactory
 import org.apache.hadoop.conf.Configuration
 import org.json4s.JValue
@@ -237,7 +239,7 @@ object SharedConf {
 
   private var sc: SharedConf = _
 
-  def get(): SharedConf = {
+  def get(): SharedConf = synchronized {
     if (sc == null) {
       sc = new SharedConf
       addMLConf()
@@ -268,6 +270,10 @@ object SharedConf {
             LOG.info(s"$key does not have default value!")
         }
       }
+    }
+
+    if(sc(MLConf.ML_OPT_DECAY_INTERVALS).toInt != MLConf.DEFAULT_ML_DECAY_INTERVALS) {
+      sc(MLConf.ML_OPT_DECAY_INTERVALS) = MLConf.DEFAULT_ML_DECAY_INTERVALS.toString
     }
   }
 
@@ -302,6 +308,44 @@ object SharedConf {
       case _ =>
     }
   }
+
+  def addHadoopConf(conf: Configuration): Unit = {
+    get()
+    val iter = conf.iterator()
+    while (iter.hasNext) {
+      val entry = iter.next()
+      sc(entry.getKey) = entry.getValue
+    }
+  }
+
+  def runningMode(): RunningMode = {
+    get()
+
+    sc.get(AngelConf.ANGEL_RUNNING_MODE) match {
+      case "ANGEL_PS" => RunningMode.ANGEL_PS
+      case "ANGEL_PS_WORKER" => RunningMode.ANGEL_PS_WORKER
+    }
+  }
+
+  def sparseInputLayerMatrixOutputFormat: String = {
+    get()
+
+    sc.get(MLConf.ML_SIMPLEINPUTLAYER_MATRIX_OUTPUT_FORMAT, MLConf.DEFAULT_ML_SIMPLEINPUTLAYER_MATRIX_OUTPUT_FORMAT)
+  }
+
+  def fcLayerMatrixOutputFormat: String = {
+    get()
+
+    sc.get(MLConf.ML_FCLAYER_MATRIX_OUTPUT_FORMAT, MLConf.DEFAULT_ML_FCLAYER_MATRIX_OUTPUT_FORMAT)
+  }
+
+
+  def embeddingLayerMatrixOutputFormat: String = {
+    get()
+
+    sc.get(MLConf.ML_EMBEDDING_MATRIX_OUTPUT_FORMAT, MLConf.DEFAULT_ML_EMBEDDING_MATRIX_OUTPUT_FORMAT)
+  }
+
 
   def actionType(): String = {
     get()
@@ -350,11 +394,11 @@ object SharedConf {
 
     val ir = sc.getLong(MLConf.ML_FEATURE_INDEX_RANGE, MLConf.DEFAULT_ML_FEATURE_INDEX_RANGE)
 
-    if (ir == -1) {
-      throw new AngelException("ML_FEATURE_INDEX_RANGE must be set!")
-    } else {
-      ir
+    if (ir < 0) {
+      Constant.setKeepStorage(true)
     }
+
+    ir
   }
 
   def inputDataFormat: String = {
@@ -390,24 +434,13 @@ object SharedConf {
   def modelSize: Long = {
     get()
 
-    val ms = sc.getLong(MLConf.ML_MODEL_SIZE)
-    if (ms == -1) {
-      indexRange
-    } else {
-      ms
-    }
+    sc.getLong(MLConf.ML_MODEL_SIZE)
   }
 
   def validateRatio: Double = {
     get()
 
     sc.getDouble(MLConf.ML_VALIDATE_RATIO, MLConf.DEFAULT_ML_VALIDATE_RATIO)
-  }
-
-  def decay: Double = {
-    get()
-
-    sc.getDouble(MLConf.ML_LEARN_DECAY, MLConf.DEFAULT_ML_LEARN_DECAY)
   }
 
   def learningRate: Double = {
@@ -445,5 +478,13 @@ object SharedConf {
 
     sc.getDouble(MLConf.ML_DATA_POSNEG_RATIO,
       MLConf.DEFAULT_ML_DATA_POSNEG_RATIO)
+  }
+
+  def getStepSizeScheduler: String = {
+    get()
+
+    sc.getString(MLConf.ML_OPT_DECAY_CLASS_NAME,
+      MLConf.DEFAULT_ML_OPT_DECAY_CLASS_NAME
+    )
   }
 }

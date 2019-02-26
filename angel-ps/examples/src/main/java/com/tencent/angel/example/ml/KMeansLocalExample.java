@@ -99,6 +99,11 @@ public class KMeansLocalExample {
       conf.set(AngelConf.ANGEL_TRAIN_DATA_PATH, trainInput);
       conf.set(AngelConf.ANGEL_SAVE_MODEL_PATH, LOCAL_FS + TMP_PATH + "/model/kmeans");
     } else if (mode == 2) {  // predict mode
+      conf.set(AngelConf.ANGEL_ACTION_TYPE, "inctrain");
+      conf.set(AngelConf.ANGEL_TRAIN_DATA_PATH, trainInput);
+      conf.set(AngelConf.ANGEL_LOAD_MODEL_PATH, LOCAL_FS + TMP_PATH + "/model/kmeans");
+      conf.set(AngelConf.ANGEL_SAVE_MODEL_PATH, LOCAL_FS + TMP_PATH + "/model/kmeans-inc");
+    } else if (mode == 3) {  // predict mode
       conf.set(AngelConf.ANGEL_ACTION_TYPE, "predict");
       conf.set(AngelConf.ANGEL_PREDICT_DATA_PATH, predictInput);
       conf.set(AngelConf.ANGEL_LOAD_MODEL_PATH, LOCAL_FS + TMP_PATH + "/model/kmeans");
@@ -116,7 +121,6 @@ public class KMeansLocalExample {
     conf.set(MLConf.KMEANS_CENTER_NUM(), String.valueOf(centerNum));
     conf.set(MLConf.ML_FEATURE_INDEX_RANGE(), String.valueOf(featureNum));
     conf.set(MLConf.ML_EPOCH_NUM(), String.valueOf(epochNum));
-    conf.set(MLConf.KMEANS_SAMPLE_RATIO_PERBATCH(), String.valueOf(spratio));
     conf.set(MLConf.KMEANS_C(), String.valueOf(c));
 
   }
@@ -135,10 +139,24 @@ public class KMeansLocalExample {
 
   }
 
-  public void predict() {
+  public void inctrain() {
 
     try {
       setConf(2);
+
+      KMeansRunner runner = new KMeansRunner();
+      runner.train(conf);
+    } catch (Exception e) {
+      LOG.error("run KMeansLocalExample:train failed.", e);
+      throw e;
+    }
+
+  }
+
+  public void predict() {
+
+    try {
+      setConf(3);
 
       KMeansRunner runner = new KMeansRunner();
       runner.predict(conf);
@@ -151,7 +169,7 @@ public class KMeansLocalExample {
   public static void main(String[] args) {
     KMeansLocalExample example = new KMeansLocalExample();
     Scanner scanner = new Scanner(System.in);
-    System.out.println("1-train 2-predict");
+    System.out.println("1-train 2-inctrain 3-predict");
     System.out.println("Please input the mode:");
     int mode = scanner.nextInt();
     switch (mode) {
@@ -159,6 +177,9 @@ public class KMeansLocalExample {
         example.train();
         break;
       case 2:
+        example.inctrain();
+        break;
+      case 3:
         example.predict();
         break;
     }

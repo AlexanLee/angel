@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2017-2018 THL A29 Limited, a Tencent company. All rights reserved.
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
  *
  * https://opensource.org/licenses/Apache-2.0
@@ -19,16 +19,40 @@
 package com.tencent.angel.ml.math2.ufuncs.executor.simple;
 
 import com.tencent.angel.exception.AngelException;
-import com.tencent.angel.ml.math2.storage.*;
+import com.tencent.angel.ml.math2.storage.IntDoubleVectorStorage;
+import com.tencent.angel.ml.math2.storage.IntFloatVectorStorage;
+import com.tencent.angel.ml.math2.storage.IntIntVectorStorage;
+import com.tencent.angel.ml.math2.storage.IntLongVectorStorage;
+import com.tencent.angel.ml.math2.storage.LongDoubleSparseVectorStorage;
+import com.tencent.angel.ml.math2.storage.LongDoubleVectorStorage;
+import com.tencent.angel.ml.math2.storage.LongFloatSparseVectorStorage;
+import com.tencent.angel.ml.math2.storage.LongFloatVectorStorage;
+import com.tencent.angel.ml.math2.storage.LongIntSparseVectorStorage;
+import com.tencent.angel.ml.math2.storage.LongIntVectorStorage;
+import com.tencent.angel.ml.math2.storage.LongLongSparseVectorStorage;
+import com.tencent.angel.ml.math2.storage.LongLongVectorStorage;
 import com.tencent.angel.ml.math2.ufuncs.expression.Binary;
-import com.tencent.angel.ml.math2.vector.*;
-import it.unimi.dsi.fastutil.ints.*;
-import it.unimi.dsi.fastutil.longs.*;
-import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import com.tencent.angel.ml.math2.utils.Constant;
+import com.tencent.angel.ml.math2.vector.IntDoubleVector;
+import com.tencent.angel.ml.math2.vector.IntDummyVector;
+import com.tencent.angel.ml.math2.vector.IntFloatVector;
+import com.tencent.angel.ml.math2.vector.IntIntVector;
+import com.tencent.angel.ml.math2.vector.IntLongVector;
+import com.tencent.angel.ml.math2.vector.LongDoubleVector;
+import com.tencent.angel.ml.math2.vector.LongDummyVector;
+import com.tencent.angel.ml.math2.vector.LongFloatVector;
+import com.tencent.angel.ml.math2.vector.LongIntVector;
+import com.tencent.angel.ml.math2.vector.LongLongVector;
+import com.tencent.angel.ml.math2.vector.Vector;
+import it.unimi.dsi.fastutil.ints.Int2DoubleMap;
+import it.unimi.dsi.fastutil.ints.Int2FloatMap;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.Int2LongMap;
+import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
 
 public class SimpleBinaryOutAllExecutor {
+
   public static Vector apply(Vector v1, Vector v2, Binary op) {
     if (v1 instanceof IntDoubleVector && v2 instanceof IntDoubleVector) {
       return apply((IntDoubleVector) v1, (IntDoubleVector) v2, op);
@@ -177,7 +201,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isDense()) {
       if (op.isKeepStorage()) {
@@ -211,7 +235,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -249,7 +273,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -289,7 +313,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -329,7 +353,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -348,9 +372,12 @@ public class SimpleBinaryOutAllExecutor {
         int[] v2Indices = v2.getStorage().getIndices();
         double[] v2Values = v2.getStorage().getValues();
 
-        for (int i = 0; i < resValues.length; i++) {
-          resValues[i] = Double.NaN;
+        if (!op.isCompare()) {
+          for (int i = 0; i < resValues.length; i++) {
+            resValues[i] = Double.NaN;
+          }
         }
+
         while (v1Pointor < size1 && v2Pointor < size2) {
           if (v1Indices[v1Pointor] == v2Indices[v2Pointor]) {
             resValues[v1Indices[v1Pointor]] = op.apply(v1Values[v1Pointor], v2Values[v2Pointor]);
@@ -366,7 +393,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -461,7 +488,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isDense()) {
       if (op.isKeepStorage()) {
@@ -495,7 +522,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -533,7 +560,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -573,7 +600,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -613,7 +640,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -632,9 +659,12 @@ public class SimpleBinaryOutAllExecutor {
         int[] v2Indices = v2.getStorage().getIndices();
         float[] v2Values = v2.getStorage().getValues();
 
-        for (int i = 0; i < resValues.length; i++) {
-          resValues[i] = Double.NaN;
+        if (!op.isCompare()) {
+          for (int i = 0; i < resValues.length; i++) {
+            resValues[i] = Double.NaN;
+          }
         }
+
         while (v1Pointor < size1 && v2Pointor < size2) {
           if (v1Indices[v1Pointor] == v2Indices[v2Pointor]) {
             resValues[v1Indices[v1Pointor]] = op.apply(v1Values[v1Pointor], v2Values[v2Pointor]);
@@ -650,7 +680,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -745,7 +775,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isDense()) {
       if (op.isKeepStorage()) {
@@ -779,7 +809,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -817,7 +847,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -857,7 +887,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -897,7 +927,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -916,9 +946,12 @@ public class SimpleBinaryOutAllExecutor {
         int[] v2Indices = v2.getStorage().getIndices();
         long[] v2Values = v2.getStorage().getValues();
 
-        for (int i = 0; i < resValues.length; i++) {
-          resValues[i] = Double.NaN;
+        if (!op.isCompare()) {
+          for (int i = 0; i < resValues.length; i++) {
+            resValues[i] = Double.NaN;
+          }
         }
+
         while (v1Pointor < size1 && v2Pointor < size2) {
           if (v1Indices[v1Pointor] == v2Indices[v2Pointor]) {
             resValues[v1Indices[v1Pointor]] = op.apply(v1Values[v1Pointor], v2Values[v2Pointor]);
@@ -934,7 +967,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -1029,7 +1062,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isDense()) {
       if (op.isKeepStorage()) {
@@ -1063,7 +1096,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -1101,7 +1134,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -1141,7 +1174,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -1181,7 +1214,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -1200,9 +1233,12 @@ public class SimpleBinaryOutAllExecutor {
         int[] v2Indices = v2.getStorage().getIndices();
         int[] v2Values = v2.getStorage().getValues();
 
-        for (int i = 0; i < resValues.length; i++) {
-          resValues[i] = Double.NaN;
+        if (!op.isCompare()) {
+          for (int i = 0; i < resValues.length; i++) {
+            resValues[i] = Double.NaN;
+          }
         }
+
         while (v1Pointor < size1 && v2Pointor < size2) {
           if (v1Indices[v1Pointor] == v2Indices[v2Pointor]) {
             resValues[v1Indices[v1Pointor]] = op.apply(v1Values[v1Pointor], v2Values[v2Pointor]);
@@ -1218,7 +1254,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -1313,7 +1349,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isDense()) {
       if (op.isKeepStorage()) {
@@ -1347,7 +1383,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -1385,7 +1421,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -1425,7 +1461,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -1465,7 +1501,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -1484,9 +1520,12 @@ public class SimpleBinaryOutAllExecutor {
         int[] v2Indices = v2.getStorage().getIndices();
         float[] v2Values = v2.getStorage().getValues();
 
-        for (int i = 0; i < resValues.length; i++) {
-          resValues[i] = Float.NaN;
+        if (!op.isCompare()) {
+          for (int i = 0; i < resValues.length; i++) {
+            resValues[i] = Float.NaN;
+          }
         }
+
         while (v1Pointor < size1 && v2Pointor < size2) {
           if (v1Indices[v1Pointor] == v2Indices[v2Pointor]) {
             resValues[v1Indices[v1Pointor]] = op.apply(v1Values[v1Pointor], v2Values[v2Pointor]);
@@ -1502,7 +1541,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -1597,7 +1636,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isDense()) {
       if (op.isKeepStorage()) {
@@ -1631,7 +1670,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -1669,7 +1708,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -1709,7 +1748,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -1749,7 +1788,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -1768,9 +1807,12 @@ public class SimpleBinaryOutAllExecutor {
         int[] v2Indices = v2.getStorage().getIndices();
         long[] v2Values = v2.getStorage().getValues();
 
-        for (int i = 0; i < resValues.length; i++) {
-          resValues[i] = Float.NaN;
+        if (!op.isCompare()) {
+          for (int i = 0; i < resValues.length; i++) {
+            resValues[i] = Float.NaN;
+          }
         }
+
         while (v1Pointor < size1 && v2Pointor < size2) {
           if (v1Indices[v1Pointor] == v2Indices[v2Pointor]) {
             resValues[v1Indices[v1Pointor]] = op.apply(v1Values[v1Pointor], v2Values[v2Pointor]);
@@ -1786,7 +1828,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -1881,7 +1923,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isDense()) {
       if (op.isKeepStorage()) {
@@ -1915,7 +1957,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -1953,7 +1995,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -1993,7 +2035,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -2033,7 +2075,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -2052,9 +2094,12 @@ public class SimpleBinaryOutAllExecutor {
         int[] v2Indices = v2.getStorage().getIndices();
         int[] v2Values = v2.getStorage().getValues();
 
-        for (int i = 0; i < resValues.length; i++) {
-          resValues[i] = Float.NaN;
+        if (!op.isCompare()) {
+          for (int i = 0; i < resValues.length; i++) {
+            resValues[i] = Float.NaN;
+          }
         }
+
         while (v1Pointor < size1 && v2Pointor < size2) {
           if (v1Indices[v1Pointor] == v2Indices[v2Pointor]) {
             resValues[v1Indices[v1Pointor]] = op.apply(v1Values[v1Pointor], v2Values[v2Pointor]);
@@ -2070,7 +2115,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -2165,7 +2210,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isDense()) {
       if (op.isKeepStorage()) {
@@ -2199,7 +2244,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -2237,7 +2282,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -2277,7 +2322,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -2317,7 +2362,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -2336,11 +2381,14 @@ public class SimpleBinaryOutAllExecutor {
         int[] v2Indices = v2.getStorage().getIndices();
         long[] v2Values = v2.getStorage().getValues();
 
-        if (size1 != v1.getDim() && size2 != v2.getDim()) {
-          for (int i = 0; i < v1.getDim(); i++) {
-            resValues[i] = 0 / 0;
+        if (!op.isCompare()) {
+          if (size1 != v1.getDim() && size2 != v2.getDim()) {
+            for (int i = 0; i < v1.getDim(); i++) {
+              resValues[i] = 0 / 0;
+            }
           }
         }
+
         while (v1Pointor < size1 && v2Pointor < size2) {
           if (v1Indices[v1Pointor] == v2Indices[v2Pointor]) {
             resValues[v1Indices[v1Pointor]] = op.apply(v1Values[v1Pointor], v2Values[v2Pointor]);
@@ -2356,7 +2404,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -2451,7 +2499,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isDense()) {
       if (op.isKeepStorage()) {
@@ -2485,7 +2533,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -2523,7 +2571,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -2563,7 +2611,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -2603,7 +2651,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new IntLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -2622,11 +2670,14 @@ public class SimpleBinaryOutAllExecutor {
         int[] v2Indices = v2.getStorage().getIndices();
         int[] v2Values = v2.getStorage().getValues();
 
-        if (size1 != v1.getDim() && size2 != v2.getDim()) {
-          for (int i = 0; i < v1.getDim(); i++) {
-            resValues[i] = 0 / 0;
+        if (!op.isCompare()) {
+          if (size1 != v1.getDim() && size2 != v2.getDim()) {
+            for (int i = 0; i < v1.getDim(); i++) {
+              resValues[i] = 0 / 0;
+            }
           }
         }
+
         while (v1Pointor < size1 && v2Pointor < size2) {
           if (v1Indices[v1Pointor] == v2Indices[v2Pointor]) {
             resValues[v1Indices[v1Pointor]] = op.apply(v1Values[v1Pointor], v2Values[v2Pointor]);
@@ -2642,7 +2693,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new IntLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -2736,8 +2787,8 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
 
-        res =
-          new IntIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(), newStorage);
+        res = new IntIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isDense()) {
       if (op.isKeepStorage()) {
@@ -2770,8 +2821,8 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
 
-        res =
-          new IntIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(), newStorage);
+        res = new IntIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -2808,8 +2859,8 @@ public class SimpleBinaryOutAllExecutor {
             }
           }
         }
-        res =
-          new IntIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(), newStorage);
+        res = new IntIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -2848,8 +2899,8 @@ public class SimpleBinaryOutAllExecutor {
             }
           }
         }
-        res =
-          new IntIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(), newStorage);
+        res = new IntIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -2888,8 +2939,8 @@ public class SimpleBinaryOutAllExecutor {
             }
           }
         }
-        res =
-          new IntIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(), newStorage);
+        res = new IntIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -2908,11 +2959,14 @@ public class SimpleBinaryOutAllExecutor {
         int[] v2Indices = v2.getStorage().getIndices();
         int[] v2Values = v2.getStorage().getValues();
 
-        if (size1 != v1.getDim() && size2 != v2.getDim()) {
-          for (int i = 0; i < v1.getDim(); i++) {
-            resValues[i] = 0 / 0;
+        if (!op.isCompare()) {
+          if (size1 != v1.getDim() && size2 != v2.getDim()) {
+            for (int i = 0; i < v1.getDim(); i++) {
+              resValues[i] = 0 / 0;
+            }
           }
         }
+
         while (v1Pointor < size1 && v2Pointor < size2) {
           if (v1Indices[v1Pointor] == v2Indices[v2Pointor]) {
             resValues[v1Indices[v1Pointor]] = op.apply(v1Values[v1Pointor], v2Values[v2Pointor]);
@@ -2927,8 +2981,8 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
 
-        res =
-          new IntIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(), newStorage);
+        res = new IntIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -2960,7 +3014,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -2982,7 +3036,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -3004,7 +3058,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -3024,8 +3078,10 @@ public class SimpleBinaryOutAllExecutor {
         long[] v2Indices = v2.getStorage().getIndices();
         double[] v2Values = v2.getStorage().getValues();
 
-        for (int i = 0; i < resValues.length; i++) {
-          resValues[i] = Double.NaN;
+        if (!op.isCompare()) {
+          for (int i = 0; i < resValues.length; i++) {
+            resValues[i] = Double.NaN;
+          }
         }
 
         int globalPointor = 0;
@@ -3051,7 +3107,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new LongDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -3083,7 +3139,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -3105,7 +3161,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -3127,7 +3183,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -3147,8 +3203,10 @@ public class SimpleBinaryOutAllExecutor {
         long[] v2Indices = v2.getStorage().getIndices();
         float[] v2Values = v2.getStorage().getValues();
 
-        for (int i = 0; i < resValues.length; i++) {
-          resValues[i] = Double.NaN;
+        if (!op.isCompare()) {
+          for (int i = 0; i < resValues.length; i++) {
+            resValues[i] = Double.NaN;
+          }
         }
 
         int globalPointor = 0;
@@ -3174,7 +3232,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new LongDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -3206,7 +3264,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -3228,7 +3286,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -3250,7 +3308,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -3270,8 +3328,10 @@ public class SimpleBinaryOutAllExecutor {
         long[] v2Indices = v2.getStorage().getIndices();
         long[] v2Values = v2.getStorage().getValues();
 
-        for (int i = 0; i < resValues.length; i++) {
-          resValues[i] = Double.NaN;
+        if (!op.isCompare()) {
+          for (int i = 0; i < resValues.length; i++) {
+            resValues[i] = Double.NaN;
+          }
         }
 
         int globalPointor = 0;
@@ -3297,7 +3357,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new LongDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -3329,7 +3389,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -3351,7 +3411,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -3373,7 +3433,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -3393,8 +3453,10 @@ public class SimpleBinaryOutAllExecutor {
         long[] v2Indices = v2.getStorage().getIndices();
         int[] v2Values = v2.getStorage().getValues();
 
-        for (int i = 0; i < resValues.length; i++) {
-          resValues[i] = Double.NaN;
+        if (!op.isCompare()) {
+          for (int i = 0; i < resValues.length; i++) {
+            resValues[i] = Double.NaN;
+          }
         }
 
         int globalPointor = 0;
@@ -3420,7 +3482,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new LongDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -3452,7 +3514,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -3474,7 +3536,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -3496,7 +3558,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -3516,8 +3578,10 @@ public class SimpleBinaryOutAllExecutor {
         long[] v2Indices = v2.getStorage().getIndices();
         float[] v2Values = v2.getStorage().getValues();
 
-        for (int i = 0; i < resValues.length; i++) {
-          resValues[i] = Float.NaN;
+        if (!op.isCompare()) {
+          for (int i = 0; i < resValues.length; i++) {
+            resValues[i] = Float.NaN;
+          }
         }
 
         int globalPointor = 0;
@@ -3543,7 +3607,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new LongFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -3575,7 +3639,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -3597,7 +3661,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -3619,7 +3683,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -3639,8 +3703,10 @@ public class SimpleBinaryOutAllExecutor {
         long[] v2Indices = v2.getStorage().getIndices();
         long[] v2Values = v2.getStorage().getValues();
 
-        for (int i = 0; i < resValues.length; i++) {
-          resValues[i] = Float.NaN;
+        if (!op.isCompare()) {
+          for (int i = 0; i < resValues.length; i++) {
+            resValues[i] = Float.NaN;
+          }
         }
 
         int globalPointor = 0;
@@ -3666,7 +3732,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new LongFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -3698,7 +3764,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -3720,7 +3786,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -3742,7 +3808,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -3762,8 +3828,10 @@ public class SimpleBinaryOutAllExecutor {
         long[] v2Indices = v2.getStorage().getIndices();
         int[] v2Values = v2.getStorage().getValues();
 
-        for (int i = 0; i < resValues.length; i++) {
-          resValues[i] = Float.NaN;
+        if (!op.isCompare()) {
+          for (int i = 0; i < resValues.length; i++) {
+            resValues[i] = Float.NaN;
+          }
         }
 
         int globalPointor = 0;
@@ -3789,7 +3857,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new LongFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -3821,7 +3889,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -3843,7 +3911,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -3865,7 +3933,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -3885,9 +3953,11 @@ public class SimpleBinaryOutAllExecutor {
         long[] v2Indices = v2.getStorage().getIndices();
         long[] v2Values = v2.getStorage().getValues();
 
-        if (size1 != v1.getDim() && size2 != v2.getDim()) {
-          for (int i = 0; i < v1.getDim(); i++) {
-            resValues[i] = 0 / 0;
+        if (!op.isCompare()) {
+          if (size1 != v1.getDim() && size2 != v2.getDim()) {
+            for (int i = 0; i < v1.getDim(); i++) {
+              resValues[i] = 0 / 0;
+            }
           }
         }
 
@@ -3914,7 +3984,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new LongLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -3946,7 +4016,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -3968,7 +4038,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -3990,7 +4060,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -4010,9 +4080,11 @@ public class SimpleBinaryOutAllExecutor {
         long[] v2Indices = v2.getStorage().getIndices();
         int[] v2Values = v2.getStorage().getValues();
 
-        if (size1 != v1.getDim() && size2 != v2.getDim()) {
-          for (int i = 0; i < v1.getDim(); i++) {
-            resValues[i] = 0 / 0;
+        if (!op.isCompare()) {
+          if (size1 != v1.getDim() && size2 != v2.getDim()) {
+            for (int i = 0; i < v1.getDim(); i++) {
+              resValues[i] = 0 / 0;
+            }
           }
         }
 
@@ -4039,7 +4111,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new LongLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -4071,7 +4143,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSparse() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -4093,7 +4165,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSparse()) {
       if (op.isKeepStorage()) {
@@ -4115,7 +4187,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else if (v1.isSorted() && v2.isSorted()) {
       if (op.isKeepStorage()) {
@@ -4135,9 +4207,11 @@ public class SimpleBinaryOutAllExecutor {
         long[] v2Indices = v2.getStorage().getIndices();
         int[] v2Values = v2.getStorage().getValues();
 
-        if (size1 != v1.getDim() && size2 != v2.getDim()) {
-          for (int i = 0; i < v1.getDim(); i++) {
-            resValues[i] = 0 / 0;
+        if (!op.isCompare()) {
+          if (size1 != v1.getDim() && size2 != v2.getDim()) {
+            for (int i = 0; i < v1.getDim(); i++) {
+              resValues[i] = 0 / 0;
+            }
           }
         }
 
@@ -4164,7 +4238,7 @@ public class SimpleBinaryOutAllExecutor {
         }
 
         res = new LongIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else {
       throw new AngelException("The operation is not support!");
@@ -4200,7 +4274,7 @@ public class SimpleBinaryOutAllExecutor {
           resValues[i] = op.apply(resValues[i], v2.get(i));
         }
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else { // sorted
       if (op.isKeepStorage()) {
@@ -4221,7 +4295,7 @@ public class SimpleBinaryOutAllExecutor {
           resValues[i] = op.apply(resValues[i], v2.get(i));
         }
         res = new IntDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     }
 
@@ -4254,7 +4328,7 @@ public class SimpleBinaryOutAllExecutor {
           resValues[i] = op.apply(resValues[i], v2.get(i));
         }
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else { // sorted
       if (op.isKeepStorage()) {
@@ -4275,7 +4349,7 @@ public class SimpleBinaryOutAllExecutor {
           resValues[i] = op.apply(resValues[i], v2.get(i));
         }
         res = new IntFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     }
 
@@ -4308,7 +4382,7 @@ public class SimpleBinaryOutAllExecutor {
           resValues[i] = op.apply(resValues[i], v2.get(i));
         }
         res = new IntLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else { // sorted
       if (op.isKeepStorage()) {
@@ -4329,7 +4403,7 @@ public class SimpleBinaryOutAllExecutor {
           resValues[i] = op.apply(resValues[i], v2.get(i));
         }
         res = new IntLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     }
 
@@ -4361,8 +4435,8 @@ public class SimpleBinaryOutAllExecutor {
         for (int i = 0; i < v1.getDim(); i++) {
           resValues[i] = op.apply(resValues[i], v2.get(i));
         }
-        res =
-          new IntIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(), newStorage);
+        res = new IntIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
+            newStorage);
       }
     } else { // sorted
       if (op.isKeepStorage()) {
@@ -4382,8 +4456,8 @@ public class SimpleBinaryOutAllExecutor {
         for (int i = 0; i < v1.getDim(); i++) {
           resValues[i] = op.apply(resValues[i], v2.get(i));
         }
-        res =
-          new IntIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(), newStorage);
+        res = new IntIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
+            newStorage);
       }
     }
 
@@ -4409,7 +4483,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else { // sorted
       if (op.isKeepStorage()) {
@@ -4426,7 +4500,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongDoubleVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     }
 
@@ -4452,7 +4526,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else { // sorted
       if (op.isKeepStorage()) {
@@ -4469,7 +4543,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongFloatVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     }
 
@@ -4495,7 +4569,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else { // sorted
       if (op.isKeepStorage()) {
@@ -4512,7 +4586,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongLongVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     }
 
@@ -4538,7 +4612,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     } else { // sorted
       if (op.isKeepStorage()) {
@@ -4555,7 +4629,7 @@ public class SimpleBinaryOutAllExecutor {
           }
         }
         res = new LongIntVector(v1.getMatrixId(), v1.getRowId(), v1.getClock(), v1.getDim(),
-          newStorage);
+            newStorage);
       }
     }
 

@@ -18,34 +18,48 @@
 
 package com.tencent.angel.ml.core.utils
 
+import com.tencent.angel.conf.AngelConf
 import com.tencent.angel.exception.AngelException
 import com.tencent.angel.ml.core.conf.{MLConf, SharedConf}
 import com.tencent.angel.ml.feature.LabeledData
 import com.tencent.angel.ml.math2.VFactory
 import com.tencent.angel.ml.matrix.RowType
 
-abstract class DataParser {
+abstract class DataParser(val splitter: String) {
   def parse(value: String): LabeledData
+
+  protected def processLabel(value: String, hasLabel: Boolean, isTraining: Boolean,
+                             transLabel: TransLabel): (Double, String, Array[String]) = {
+    if (null == value) {
+      return (Double.NaN, "", null)
+    }
+
+    val splits = value.trim.split(splitter)
+
+    if (splits.size < 1) {
+      (Double.NaN, "", null)
+    } else {
+      if (hasLabel && isTraining) {
+        val label = transLabel.trans(splits(0).toDouble)
+        (label, "", splits.tail)
+      } else if (hasLabel && !isTraining) {
+        val attached = splits(0).trim
+        (Double.NaN, attached, splits.tail)
+      } else {
+        (Double.NaN, "", splits)
+      }
+    }
+  }
 }
 
-case class DummyDataParser(splitter: String, featRange: Long, hasLabel: Boolean, transLabel: Boolean, rowType: RowType) extends DataParser {
+case class DummyDataParser(override val splitter: String, featRange: Long, hasLabel: Boolean, isTraining: Boolean, transLabel: TransLabel, rowType: RowType) extends DataParser(splitter) {
   override def parse(value: String): LabeledData = {
-    if (null == value) {
+
+    val (y, attached, splits) = processLabel(value, hasLabel, isTraining, transLabel)
+    if (splits == null) {
       return null
     }
 
-    var splits = value.trim.split(splitter)
-    if (splits.length < 1) {
-      return null
-    }
-
-    val y = if (hasLabel) {
-      val label = splits(0).toDouble
-      splits = splits.tail
-      if (transLabel) {
-        if (label == 0) -1.0 else label
-      } else label
-    } else Double.NaN
 
     val keyType = NetUtils.keyType(rowType)
     val valueType = NetUtils.valueType(rowType)
@@ -54,42 +68,33 @@ case class DummyDataParser(splitter: String, featRange: Long, hasLabel: Boolean,
       case ("long", "double") =>
         val keys: Array[Long] = (0 until len).toArray.map(i => splits(i).toLong)
         VFactory.sparseLongKeyDoubleVector(featRange, keys, keys.map(_ => 1.0))
+      // VFactory.sortedLongKeyDoubleVector(featRange, keys, keys.map(_ => 1.0))
       case ("int", "double") =>
         val keys: Array[Int] = (0 until len).toArray.map(i => splits(i).toInt)
         VFactory.sparseDoubleVector(featRange.toInt, keys, keys.map(_ => 1.0))
+      // VFactory.sortedDoubleVector(featRange.toInt, keys, keys.map(_ => 1.0))
       case ("long", "float") =>
         val keys: Array[Long] = (0 until len).toArray.map(i => splits(i).toLong)
         VFactory.sparseLongKeyFloatVector(featRange, keys, keys.map(_ => 1.0f))
+      // VFactory.sortedLongKeyFloatVector(featRange, keys, keys.map(_ => 1.0f))
       case ("int", "float") =>
         val keys: Array[Int] = (0 until len).toArray.map(i => splits(i).toInt)
         VFactory.sparseFloatVector(featRange.toInt, keys, keys.map(_ => 1.0f))
+      // VFactory.sortedFloatVector(featRange.toInt, keys, keys.map(_ => 1.0f))
       case _ => throw new AngelException("RowType is not support!")
     }
 
-    new LabeledData(x, y)
+    new LabeledData(x, y, attached)
   }
 }
 
-case class LibSVMDataParser(splitter: String, featRange: Long, hasLabel: Boolean, transLabel: Boolean, rowType: RowType) extends DataParser {
-  // type V = IntDoubleVector
+case class LibSVMDataParser(override val splitter: String, featRange: Long, hasLabel: Boolean, isTraining: Boolean, transLabel: TransLabel, rowType: RowType) extends DataParser(splitter) {
 
-  override def parse(text: String): LabeledData = {
-    if (null == text) {
+  override def parse(value: String): LabeledData = {
+    val (y, attached, splits) = processLabel(value, hasLabel, isTraining, transLabel)
+    if (splits == null) {
       return null
     }
-
-    var splits = text.trim.split(splitter)
-
-    if (splits.length < 1)
-      return null
-
-    val y = if (hasLabel) {
-      val label = splits(0).toDouble
-      splits = splits.tail
-      if (transLabel) {
-        if (label == 0) -1.0 else label
-      } else label
-    } else Double.NaN
     val len = splits.length
 
     val keyType = NetUtils.keyType(rowType)
@@ -106,6 +111,7 @@ case class LibSVMDataParser(splitter: String, featRange: Long, hasLabel: Boolean
           vals(indx2) = kv(1).toDouble
         }
         VFactory.sparseLongKeyDoubleVector(featRange, keys, vals)
+        // VFactory.sortedLongKeyDoubleVector(featRange, keys, vals)
 
       case ("int", "double") =>
         val keys: Array[Int] = new Array[Int](len)
@@ -118,6 +124,7 @@ case class LibSVMDataParser(splitter: String, featRange: Long, hasLabel: Boolean
           vals(indx2) = kv(1).toDouble
         }
         VFactory.sparseDoubleVector(featRange.toInt, keys, vals)
+        // VFactory.sortedDoubleVector(featRange.toInt, keys, vals)
       case ("long", "float") =>
         val keys: Array[Long] = new Array[Long](len)
         val vals: Array[Float] = new Array[Float](len)
@@ -129,6 +136,7 @@ case class LibSVMDataParser(splitter: String, featRange: Long, hasLabel: Boolean
           vals(indx2) = kv(1).toFloat
         }
         VFactory.sparseLongKeyFloatVector(featRange, keys, vals)
+        // VFactory.sortedLongKeyFloatVector(featRange, keys, vals)
       case ("int", "float") =>
         val keys: Array[Int] = new Array[Int](len)
         val vals: Array[Float] = new Array[Float](len)
@@ -140,32 +148,21 @@ case class LibSVMDataParser(splitter: String, featRange: Long, hasLabel: Boolean
           vals(indx2) = kv(1).toFloat
         }
         VFactory.sparseFloatVector(featRange.toInt, keys, vals)
+        // VFactory.sortedFloatVector(featRange.toInt, keys, vals)
       case _ => throw new AngelException("RowType is not support!")
     }
 
-    new LabeledData(x, y)
+    new LabeledData(x, y, attached)
   }
 }
 
-case class DenseDataParser(splitter: String, featRange: Int, hasLabel: Boolean, transLabel: Boolean, rowType: RowType) extends DataParser {
+case class DenseDataParser(override val splitter: String, featRange: Int, hasLabel: Boolean, isTraining: Boolean, transLabel: TransLabel, rowType: RowType) extends DataParser(splitter) {
 
   override def parse(value: String): LabeledData = {
-    if (null == value) {
+    val (y, attached, splits) = processLabel(value, hasLabel, isTraining, transLabel)
+    if (splits == null) {
       return null
     }
-
-    var splits = value.trim.split(splitter)
-    if (splits.length < 1) {
-      return null
-    }
-
-    val y = if (hasLabel) {
-      val label = splits(0).toDouble
-      splits = splits.tail
-      if (transLabel) {
-        if (label == 0) -1.0 else label
-      } else label
-    } else Double.NaN
 
     val x = NetUtils.valueType(rowType) match {
       case "double" =>
@@ -175,7 +172,7 @@ case class DenseDataParser(splitter: String, featRange: Int, hasLabel: Boolean, 
       case _ => throw new AngelException("RowType is not support!")
     }
 
-    new LabeledData(x, y)
+    new LabeledData(x, y, attached)
   }
 }
 
@@ -187,11 +184,18 @@ object DataParser {
     val splitter = conf.get(MLConf.ML_DATA_SPLITOR, MLConf.DEFAULT_ML_DATA_SPLITOR)
     val rowType = RowType.valueOf(conf.get(MLConf.ML_MODEL_TYPE, MLConf.DEFAULT_ML_MODEL_TYPE))
     val hasLabel = conf.getBoolean(MLConf.ML_DATA_HAS_LABEL, MLConf.DEFAULT_ML_DATA_HAS_LABEL)
-    val transLabel = conf.getBoolean(MLConf.ML_DATA_TRANS_LABEL, MLConf.DEFAULT_ML_DATA_TRANS_LABEL)
+    val isTraining = conf.get(AngelConf.ANGEL_ACTION_TYPE, AngelConf.DEFAULT_ANGEL_ACTION_TYPE) match {
+      case "train" | "inctrain" => true
+      case _ => false
+    }
+    val transLabel = TransLabel.get(
+      conf.getString(MLConf.ML_DATA_LABEL_TRANS, MLConf.DEFAULT_ML_DATA_LABEL_TRANS),
+      conf.getDouble(MLConf.ML_DATA_LABEL_TRANS_THRESHOLD, MLConf.DEFAULT_ML_DATA_LABEL_TRANS_THRESHOLD)
+    )
     dataFormat match {
-      case "dummy" => DummyDataParser(splitter, featRange, hasLabel, transLabel, rowType)
-      case "libsvm" => LibSVMDataParser(splitter, featRange, hasLabel, transLabel, rowType)
-      case "dense" => DenseDataParser(splitter, featRange.toInt, hasLabel, transLabel, rowType)
+      case "dummy" => DummyDataParser(splitter, featRange, hasLabel, isTraining, transLabel, rowType)
+      case "libsvm" => LibSVMDataParser(splitter, featRange, hasLabel, isTraining, transLabel, rowType)
+      case "dense" => DenseDataParser(splitter, featRange.toInt, hasLabel, isTraining, transLabel, rowType)
     }
   }
 }

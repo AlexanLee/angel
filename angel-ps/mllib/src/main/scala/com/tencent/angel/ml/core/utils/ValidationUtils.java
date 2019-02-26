@@ -18,6 +18,9 @@
 
 package com.tencent.angel.ml.core.utils;
 
+import com.tencent.angel.exception.AngelException;
+import com.tencent.angel.ml.core.graphsubmit.GraphPredictResult;
+import com.tencent.angel.ml.core.graphsubmit.SoftmaxPredictResult;
 import com.tencent.angel.ml.feature.LabeledData;
 import com.tencent.angel.ml.model.MLModel;
 import com.tencent.angel.ml.core.optimizer.loss.LossFunc;
@@ -159,7 +162,14 @@ public class ValidationUtils {
         truePos.put(labels[i], count + 1.0);
       }
 
-      loss += lossFunc.loss(predRes.proba(), labels[i]);
+      if (predRes instanceof GraphPredictResult) {
+        loss += lossFunc.loss(predRes.proba(), labels[i]);
+      } else if (predRes instanceof SoftmaxPredictResult) {
+        loss += lossFunc.loss(((SoftmaxPredictResult)predRes).trueProba(), labels[i]);
+      } else {
+        throw new AngelException("PredictResult Error!");
+      }
+
     }
 
     long cost = System.currentTimeMillis() - startTime;
@@ -245,8 +255,8 @@ public class ValidationUtils {
       scoresArray.length / 5] + "," + scoresArray[scoresArray.length / 3] + "," + scoresArray[
       scoresArray.length / 2] + "," + scoresArray[scoresArray.length - 1]);
 
-    long M = 0; // positive sample
-    long N = 0; // negtive sample
+    long M = 1; // positive sample
+    long N = 1; // negtive sample
     for (int i = 0; i < totalNum; i++) {
       if (labelsArray[i] == 1) {
         M++;
@@ -255,9 +265,9 @@ public class ValidationUtils {
       }
     }
     double sigma = 0;
-    for (long i = M + N - 1; i >= 0; i--) {
+    for (long i = totalNum-1; i >= 0; i--) {
       if (labelsArray[(int) i] == 1.0) {
-        sigma += i;
+        sigma += i + 1;
       }
     }
 

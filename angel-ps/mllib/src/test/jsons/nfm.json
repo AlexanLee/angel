@@ -10,16 +10,17 @@
     "modelsize": 148
   },
   "train": {
-    "epoch": 10,
+    "epoch": 5,
     "numupdateperepoch": 10,
-    "lr": 0.01,
-    "decay": 0.1
+    "lr": 0.1,
+    "decayclass": "WarmRestarts",
+    "decayalpha": 0.05
   },
-  "default_optimizer": "Momentum",
+  "default_optimizer": "Adam",
   "layers": [
     {
       "name": "wide",
-      "type": "sparseinputlayer",
+      "type": "simpleinputlayer",
       "outputdim": 1,
       "transfunc": "identity"
     },

@@ -27,7 +27,7 @@ import com.tencent.angel.ml.math2.vector._
 import com.tencent.angel.ml.math2.{MFactory, VFactory}
 import com.tencent.angel.ml.matrix.psf.get.getrows.{GetRows, GetRowsParam, GetRowsResult}
 import com.tencent.angel.ml.matrix.{MatrixContext, RowType}
-import com.tencent.angel.ps.server.data.request.UpdateOp
+import com.tencent.angel.ps.server.data.request.{InitFunc, RandomNormalInitFunc, UpdateOp}
 import com.tencent.angel.ps.storage.partitioner.ColumnRangePartitioner
 import com.tencent.angel.psagent.PSAgentContext
 
@@ -54,47 +54,76 @@ object PSMatrixUtils {
     master.createMatrices(list, Long.MaxValue)
   }
 
-  def createPSMatrix(ctx: MatrixContext): Unit = {
+  def createPSMatrix(ctx: MatrixContext): Int = {
     val master = PSAgentContext.get().getMasterClient
     master.createMatrix(ctx, Long.MaxValue)
+    master.getMatrix(ctx.getName).getId
   }
 
-  def getRow(matrixId: Int, rowId: Int): Vector = {
+  def getRow(epoch: Int, matrixId: Int, rowId: Int): Vector = {
     PSAgentContext.get.getUserRequestAdapter.getRow(matrixId, rowId, 0)
   }
 
-  def getRowWithIndex(matrixId: Int, rowId: Int, index: Vector): Vector = {
-    val futureVector = index match {
-      case v: IntIntVector if v.isDense =>
-        PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowId, v.getStorage.getValues)
-      case v: IntDummyVector => v.getIndices
-        PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowId, v.getIndices)
-      case v: IntLongVector if v.isDense =>
-        PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowId, v.getStorage.getValues)
-      case v: LongDummyVector =>
-        PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowId, v.getIndices)
+  def getRowWithIndex(epoch: Int, matrixId: Int, rowId: Int, index: Vector): Vector = {
+    val futureVector = if (epoch == 0) {
+      val initFunc = new RandomNormalInitFunc(0.0, 0.00001)
+      index match {
+        case v: IntIntVector if v.isDense =>
+          PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowId, v.getStorage.getValues, initFunc)
+        case v: IntDummyVector => v.getIndices
+          PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowId, v.getIndices, initFunc)
+        case v: IntLongVector if v.isDense =>
+          PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowId, v.getStorage.getValues, initFunc)
+        case v: LongDummyVector =>
+          PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowId, v.getIndices, initFunc)
+      }
+    } else {
+      index match {
+        case v: IntIntVector if v.isDense =>
+          PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowId, v.getStorage.getValues)
+        case v: IntDummyVector => v.getIndices
+          PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowId, v.getIndices)
+        case v: IntLongVector if v.isDense =>
+          PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowId, v.getStorage.getValues)
+        case v: LongDummyVector =>
+          PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowId, v.getIndices)
+      }
     }
 
     futureVector.get()
   }
 
-  def getRowsWithIndex(matrixId: Int, rowIds: Array[Int], index: Vector): Array[Vector] = {
-    val futureVector = index match {
-      case v: IntIntVector if v.isDense =>
-        PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowIds, v.getStorage.getValues)
-      case v: IntDummyVector => v.getIndices
-        PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowIds, v.getIndices)
-      case v: IntLongVector if v.isDense =>
-        PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowIds, v.getStorage.getValues)
-      case v: LongDummyVector =>
-        PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowIds, v.getIndices)
+  def getRowsWithIndex(epoch: Int, matrixId: Int, rowIds: Array[Int], index: Vector): Array[Vector] = {
+    val futureVector = if (epoch == 0) {
+      val initFunc = new RandomNormalInitFunc(0.0, 0.00001)
+      index match {
+        case v: IntIntVector if v.isDense =>
+          PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowIds, v.getStorage.getValues, initFunc)
+        case v: IntDummyVector => v.getIndices
+          PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowIds, v.getIndices, initFunc)
+        case v: IntLongVector if v.isDense =>
+          PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowIds, v.getStorage.getValues, initFunc)
+        case v: LongDummyVector =>
+          PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowIds, v.getIndices, initFunc)
+      }
+    } else {
+      index match {
+        case v: IntIntVector if v.isDense =>
+          PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowIds, v.getStorage.getValues)
+        case v: IntDummyVector => v.getIndices
+          PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowIds, v.getIndices)
+        case v: IntLongVector if v.isDense =>
+          PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowIds, v.getStorage.getValues)
+        case v: LongDummyVector =>
+          PSAgentContext.get.getUserRequestAdapter.get(matrixId, rowIds, v.getIndices)
+      }
     }
 
     futureVector.get()
   }
 
-  def getRowAsMatrix(matrixId: Int, rowId: Int, matRows: Int, matCols: Int): Matrix = {
-    val vector = getRow(matrixId, rowId)
+  def getRowAsMatrix(epoch: Int, matrixId: Int, rowId: Int, matRows: Int, matCols: Int): Matrix = {
+    val vector = getRow(epoch, matrixId, rowId)
 
     assert(vector.isDense)
     vector.getStorage match {
@@ -106,7 +135,7 @@ object PSMatrixUtils {
     }
   }
 
-  def getMatrix(matrixId: Int, startRowId: Int, endRowId: Int): Matrix = {
+  def getMatrix(epoch: Int, matrixId: Int, startRowId: Int, endRowId: Int): Matrix = {
     val idxArr = (startRowId until endRowId).toArray
     val param = new GetRowsParam(matrixId, idxArr)
     val func = new GetRows(param)
@@ -123,7 +152,7 @@ object PSMatrixUtils {
             val dim = vec.asInstanceOf[CompIntDoubleVector].getDim
 
             if (data == null) {
-              data = Array[Double](dim * vectors.length)
+              data = new Array[Double](dim * vectors.length)
             }
 
             vec.asInstanceOf[CompIntDoubleVector].getPartitions.zipWithIndex.foreach { case (part, idx) =>
@@ -144,7 +173,7 @@ object PSMatrixUtils {
             val dim = vec.asInstanceOf[CompIntDoubleVector].getDim
 
             if (data == null) {
-              data = Array[Float](dim * vectors.length)
+              data = new Array[Float](dim * vectors.length)
             }
 
             vec.asInstanceOf[CompIntFloatVector].getPartitions.zipWithIndex.foreach { case (part, idx) =>
@@ -168,7 +197,7 @@ object PSMatrixUtils {
           vectors.zipWithIndex.foreach { case (vec, row) =>
             val valArr = vec.asInstanceOf[IntDoubleVector].getStorage.getValues
             if (data == null) {
-              data = Array[Double](valArr.length * vectors.length)
+              data = new Array[Double](valArr.length * vectors.length)
             }
 
             Array.copy(valArr, 0, data, row * valArr.length, valArr.length)
@@ -185,7 +214,7 @@ object PSMatrixUtils {
           vectors.zipWithIndex.foreach { case (vec, row) =>
             val valArr = vec.asInstanceOf[IntFloatVector].getStorage.getValues
             if (data == null) {
-              data = Array[Float](valArr.length * vectors.length)
+              data = new Array[Float](valArr.length * vectors.length)
             }
 
             Array.copy(valArr, 0, data, row * valArr.length, valArr.length)
@@ -202,8 +231,8 @@ object PSMatrixUtils {
     }
   }
 
-  def getMatrixWithIndex(matrixId: Int, startRowId: Int, endRowId: Int, index: Vector): Matrix = {
-    val vectors = getRowsWithIndex(matrixId, (startRowId until endRowId).toArray, index)
+  def getMatrixWithIndex(epoch: Int, matrixId: Int, startRowId: Int, endRowId: Int, index: Vector): Matrix = {
+    val vectors = getRowsWithIndex(epoch, matrixId, (startRowId until endRowId).toArray, index)
 
     vectors.head match {
       case _: CompIntDoubleVector =>
@@ -260,4 +289,13 @@ object PSMatrixUtils {
   def incrementRows(matrixId: Int, rowIds: Array[Int], vectors: Array[Vector]): Unit = {
     PSAgentContext.get().getUserRequestAdapter.update(matrixId, rowIds, vectors, UpdateOp.PLUS).get()
   }
+
+  def updateRow(matrixId: Int, rowId: Int, vector: Vector): Unit = {
+    PSAgentContext.get().getUserRequestAdapter.update(matrixId, rowId, vector, UpdateOp.REPLACE).get()
+  }
+
+  def updateRows(matrixId: Int, rowIds: Array[Int], vectors: Array[Vector]): Unit = {
+    PSAgentContext.get().getUserRequestAdapter.update(matrixId, rowIds, vectors, UpdateOp.REPLACE).get()
+  }
+
 }

@@ -24,7 +24,7 @@
 
 
 ## Design
-
+* [模型格式](./docs/design/model_format.md)
 * [模型切分（modelPartitioner）](./docs/design/model_partitioner.md)
 * [异步控制（syncController）](./docs/design/sync_controller.md)
 * [定制函数（psFunc）](./docs/design/psfFunc.md)
@@ -42,6 +42,7 @@
 * [Angel中优化器](./docs/basic/optimizer_on_angel.md)
 * [Angel中的损失函数](./docs/basic/lossfunc_on_angel.md)
 * [Angel中的传输函数](./docs/basic/transfunc_on_angel.md)
+* [Angel中的学习率Decay](./docs/basic/batchsize_decay.md)
 
 ## Quick Start
 * [Angel入门](./docs/tutorials/angel_ps_quick_start.md)
@@ -49,7 +50,8 @@
 * [Angel Json配置](./docs/basic/json_conf.md)
 
 ## Algorithm
-
+* [**Angel or Spark On Angel？**](./docs/algo/angel_or_spark_on_angel.md)
+* [**Algorithm Parameter Description**](./docs/algo/model_config_details.md)
 * **Angel**
 	* **Traditional Machine Learning Methods**
 		* [Logistic Regression(LR)](./docs/algo/lr_on_angel.md)
@@ -57,6 +59,7 @@
 		* [Factorization Machine(FM)](./docs/algo/fm_on_angel.md)
 		* [Linear Regression](./docs/algo/linear_on_angel.md)
 		* [Robust Regression](./docs/algo/robust_on_angel.md)
+		* [Softmax Regression](./docs/algo/softmax_on_angel.md)
 		* [KMeans](./docs/algo/kmeans_on_angel.md)
 		* [GBDT](./docs/algo/gbdt_on_angel.md)
 		* [LDA\*](./docs/algo/lda_on_angel.md) ([WrapLDA](./docs/algo/wrap_lda_on_angel.md))
@@ -68,12 +71,10 @@
 		* [Neural Factorization Machine(NFM)](./docs/algo/nfm_on_angel.md)
 		* [Product Neural Network(PNN)](./docs/algo/pnn_on_angel.md)
 * **Spark on Angel**
-	* **Online Learning**
-		* [FTRL](./docs/algo/ftrl_lr_spark.md)
-	* **Offline Learning**
-		* [Logistic Regression(LR)](./docs/algo/sona/lr_sona.md)
-		* [Word2Vec](./docs/algo/sona/word2vec_sona.md)
-		* [LINE](./docs/algo/sona/line_sona.md)
+	* [FTRL](./docs/algo/ftrl_lr_spark.md)
+	* [Logistic Regression(LR)](./docs/algo/sona/lr_sona.md)
+	* [Word2Vec](./docs/algo/sona/word2vec_sona.md)
+	* [LINE](./docs/algo/sona/line_sona.md)
 
 
 ## Deployment
@@ -83,6 +84,7 @@
 * [Yarn运行](./docs/deploy/run_on_yarn.md)
 * [系统配置](./docs/deploy/config_details.md)
 * [资源配置指南](./docs/deploy/resource_config_guide.md)
+* [使用OpenBlas给算法加速](./docs/deploy/blas_for_densematrix.md)
 
 ## FAQ
 * [工程类问题](https://github.com/Tencent/angel/wiki/%E5%B7%A5%E7%A8%8B%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98)
@@ -97,6 +99,7 @@
   2. Jiawei Jiang, Bin Cui, Ce Zhang, Lele Yu. [Heterogeneity-aware Distributed Parameter Servers](http://dl.acm.org/citation.cfm?id=3035933). SIGMOD, 2017
   3. Jie Jiang, Lele Yu, Jiawei Jiang, Yuhong Liu and Bin Cui. [Angel: a new large-scale machine learning system](https://academic.oup.com/nsr/article/3052720). National Science Review (NSR), 2017
   4. Jie Jiang, Jiawei Jiang,  Bin Cui and Ce Zhang. [TencentBoost: A Gradient Boosting Tree System with Parameter Server](http://ieeexplore.ieee.org/abstract/document/7929984/).	ICDE, 2017
+  5. Jiawei Jiang, Bin Cui, Ce Zhang and Fangcheng Fu. [DimBoost: Boosting Gradient Boosting Decision Tree to Higher Dimensions](https://dl.acm.org/citation.cfm?id=3196892). SIGMOD, 2018.
 
 ## Presentation
 

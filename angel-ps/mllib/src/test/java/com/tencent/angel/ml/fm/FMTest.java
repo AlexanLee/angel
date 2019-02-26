@@ -53,13 +53,13 @@ public class FMTest {
       // Feature number of train data
       int featureNum = 123;
       // Total iteration number
-      int epochNum = 20;
+      int epochNum = 5;
       // Validation sample Ratio
       double vRatio = 0.1;
       // Data format, libsvm or dummy
       String dataFmt = "libsvm";
       // Train batch number per epoch.
-      String modelType = String.valueOf(RowType.T_DOUBLE_SPARSE);
+      String modelType = String.valueOf(RowType.T_FLOAT_SPARSE_LONGKEY);
 
       // Learning rate
       double learnRate = 1.0;
@@ -75,7 +75,10 @@ public class FMTest {
       conf.setBoolean("mapred.mapper.new-api", true);
       conf.set(AngelConf.ANGEL_INPUTFORMAT_CLASS, CombineTextInputFormat.class.getName());
       conf.setBoolean(AngelConf.ANGEL_JOB_OUTPUT_PATH_DELETEONEXIST, true);
-      conf.setInt(AngelConf.ANGEL_PSAGENT_CACHE_SYNC_TIMEINTERVAL_MS, 100);
+      conf.setInt(AngelConf.ANGEL_PSAGENT_CACHE_SYNC_TIMEINTERVAL_MS, 10);
+      conf.setInt(AngelConf.ANGEL_WORKER_HEARTBEAT_INTERVAL_MS, 1000);
+      conf.setInt(AngelConf.ANGEL_PS_HEARTBEAT_INTERVAL_MS, 1000);
+      conf.setBoolean(AngelConf.ANGEL_PS_USE_ADAPTIVE_STORAGE_ENABLE, false);
 
       // Set data format
       conf.set(MLConf.ML_DATA_INPUT_FORMAT(), dataFmt);
@@ -87,11 +90,11 @@ public class FMTest {
 
       //set sgd FM algorithm parameters #feature #epoch
       conf.set(MLConf.ML_MODEL_TYPE(), modelType);
-      conf.set(MLConf.ML_FEATURE_INDEX_RANGE(), String.valueOf(featureNum));
+      conf.setLong(MLConf.ML_FEATURE_INDEX_RANGE(), featureNum * 2);
       conf.set(MLConf.ML_EPOCH_NUM(), String.valueOf(epochNum));
       conf.set(MLConf.ML_VALIDATE_RATIO(), String.valueOf(vRatio));
       conf.set(MLConf.ML_LEARN_RATE(), String.valueOf(learnRate));
-      conf.set(MLConf.ML_LEARN_DECAY(), String.valueOf(decay));
+      conf.set(MLConf.ML_OPT_DECAY_ALPHA(), String.valueOf(decay));
       conf.set(MLConf.ML_REG_L2(), String.valueOf(reg));
       conf.setLong(MLConf.ML_MODEL_SIZE(), featureNum);
       conf.setLong(MLConf.ML_RANK_NUM(), 4);
@@ -105,6 +108,7 @@ public class FMTest {
   @Test public void testFM() throws Exception {
     setConf();
     trainTest();
+    inctrainTest();
     predictTest();
   }
 
@@ -114,6 +118,33 @@ public class FMTest {
       String savePath = LOCAL_FS + TMP_PATH + "/FMmodel";
       String logPath = LOCAL_FS + TMP_PATH + "/FMlog";
 
+      conf.setInt(AngelConf.ANGEL_PS_NUMBER, 4);
+      // Set trainning data path
+      conf.set(AngelConf.ANGEL_TRAIN_DATA_PATH, inputPath);
+      // Set save model path
+      conf.set(AngelConf.ANGEL_SAVE_MODEL_PATH, savePath);
+      // Set log path
+      conf.set(AngelConf.ANGEL_LOG_PATH, logPath);
+      // Set actionType train
+      conf.set(AngelConf.ANGEL_ACTION_TYPE, MLConf.ANGEL_ML_TRAIN());
+
+      GraphRunner runner = new GraphRunner();
+      runner.train(conf);
+    } catch (Exception x) {
+      LOG.error("run trainOnLocalClusterTest failed ", x);
+      throw x;
+    }
+  }
+
+  private void inctrainTest() throws Exception {
+    try {
+      String inputPath = "../../data/a9a/a9a_123d_train.libsvm";
+      String loadPath = LOCAL_FS + TMP_PATH + "/FMmodel";
+      String savePath = LOCAL_FS + TMP_PATH + "/FMmodel_new";
+      String logPath = LOCAL_FS + TMP_PATH + "/FMlog";
+
+      conf.set(AngelConf.ANGEL_LOAD_MODEL_PATH, loadPath);
+      conf.setInt(AngelConf.ANGEL_PS_NUMBER, 3);
       // Set trainning data path
       conf.set(AngelConf.ANGEL_TRAIN_DATA_PATH, inputPath);
       // Set save model path
@@ -134,10 +165,11 @@ public class FMTest {
   private void predictTest() throws Exception {
     try {
       String inputPath = "../../data/a9a/a9a_123d_train.libsvm";
-      String loadPath = LOCAL_FS + TMP_PATH + "/FMmodel";
+      String loadPath = LOCAL_FS + TMP_PATH + "/FMmodel_new";
       String predictPath = LOCAL_FS + TMP_PATH + "/predict";
       String logPath = LOCAL_FS + TMP_PATH + "/FMlog";
 
+      conf.setInt(AngelConf.ANGEL_PS_NUMBER, 1);
       // Set trainning data path
       conf.set(AngelConf.ANGEL_PREDICT_DATA_PATH, inputPath);
       // Set load model path

@@ -10,15 +10,16 @@
     "modelsize": 300
   },
   "train": {
-    "epoch": 30,
+    "epoch": 5,
     "lr": 0.1,
-    "decay": 0.001
+    "decayclass": "WarmRestarts",
+    "decayalpha": 0.05
   },
   "default_optimizer": "momentum",
   "layers": [
     {
       "name": "denseinputlayer",
-      "type": "denseinputlayer",
+      "type": "simpleinputlayer",
       "outputdim": 500,
       "transfunc": "relu"
     },

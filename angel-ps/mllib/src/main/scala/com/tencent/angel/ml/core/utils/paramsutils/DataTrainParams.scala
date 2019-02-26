@@ -31,7 +31,7 @@ class DataParams(val path: Option[String],
                  val sampleRatio: Option[Double],
                  val useShuffle: Option[Boolean],
                  val posnegRatio: Option[Double],
-                 val transLabel: Option[Boolean]
+                 val transLabel: Option[String]
                 ) {
   def updateConf(conf: SharedConf): Unit = {
     path.foreach(v => conf.set(AngelConf.ANGEL_TRAIN_DATA_PATH, v))
@@ -42,7 +42,7 @@ class DataParams(val path: Option[String],
     sampleRatio.foreach(v => conf.setDouble(MLConf.ML_BATCH_SAMPLE_RATIO, v))
     useShuffle.foreach(v => conf.setBoolean(MLConf.ML_DATA_USE_SHUFFLE, v))
     posnegRatio.foreach(v => conf.setDouble(MLConf.ML_DATA_POSNEG_RATIO, v))
-    transLabel.foreach(v => conf.setBoolean(MLConf.ML_DATA_TRANS_LABEL, v))
+    transLabel.foreach(v => conf.setString(MLConf.ML_DATA_LABEL_TRANS, v))
   }
 }
 
@@ -95,7 +95,7 @@ object DataParams {
 
         val transLabel = jast \ ParamKeys.transLabel match {
           case JNothing => None
-          case v: JValue => Some(v.extract[Boolean])
+          case v: JValue => Some(v.extract[String])
         }
 
         new DataParams(path, format, indexRange, numField, validateRatio,
@@ -108,13 +108,18 @@ class TrainParams(val epoch: Option[Int],
                   val numUpdatePerEpoch: Option[Int],
                   val batchSize: Option[Int],
                   val lr: Option[Double],
-                  val decay: Option[Double]) {
+                  val decayClass: Option[String],
+                  val decayAlpha: Option[Double],
+                  val decayBeta: Option[Double]
+                 ) {
   def updateConf(conf: SharedConf): Unit = {
     epoch.foreach(v => conf.setInt(MLConf.ML_EPOCH_NUM, v))
     numUpdatePerEpoch.foreach(v => conf.setInt(MLConf.ML_NUM_UPDATE_PER_EPOCH, v))
     batchSize.foreach(v => conf.setInt(MLConf.ML_MINIBATCH_SIZE, v))
     lr.foreach(v => conf.setDouble(MLConf.ML_LEARN_RATE, v))
-    decay.foreach(v => conf.setDouble(MLConf.ML_LEARN_DECAY, v))
+    decayClass.foreach(v => conf.setString(MLConf.ML_OPT_DECAY_CLASS_NAME, v))
+    decayAlpha.foreach(v => conf.setDouble(MLConf.ML_OPT_DECAY_ALPHA, v))
+    decayBeta.foreach(v => conf.setDouble(MLConf.ML_OPT_DECAY_BETA, v))
   }
 }
 
@@ -123,7 +128,7 @@ object TrainParams {
 
   def apply(json: JValue): TrainParams = {
     json match {
-      case JNothing => new TrainParams(None, None, None, None, None)
+      case JNothing => new TrainParams(None, None, None, None, None, None, None)
       case jast: JValue =>
         val epoch = jast \ ParamKeys.epoch match {
           case JNothing => None
@@ -145,12 +150,22 @@ object TrainParams {
           case v: JValue => Some(v.extract[Double])
         }
 
-        val decay = jast \ ParamKeys.decay match {
+        val decayClass = jast \ ParamKeys.decayClass match {
+          case JNothing => None
+          case v: JValue => Some(v.extract[String])
+        }
+
+        val decayAlpha = jast \ ParamKeys.decayAlpha match {
           case JNothing => None
           case v: JValue => Some(v.extract[Double])
         }
 
-        new TrainParams(epoch, numUpdatePerEpoch, batchSize, lr, decay)
+        val decayBeta = jast \ ParamKeys.decayBeta match {
+          case JNothing => None
+          case v: JValue => Some(v.extract[Double])
+        }
+
+        new TrainParams(epoch, numUpdatePerEpoch, batchSize, lr, decayClass, decayAlpha, decayBeta)
     }
   }
 }

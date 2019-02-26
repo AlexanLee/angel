@@ -392,7 +392,7 @@ class BlasMatrixBinaryTest {
           println(s"blasmatrix div vector: ${matrixlist1.get(i).div(ilist1.get(j)).sum()}")
         } catch {
           case e: AngelException => {
-            println(e)
+            e
           }
         }
       }
@@ -407,7 +407,7 @@ class BlasMatrixBinaryTest {
           println(s"blasmatrix div blasmatrix : ${Ufuncs.div(matrixlist1.get(i), false, matrixlist1.get(j), true).sum()}")
         } catch {
           case e: AngelException => {
-            println(e)
+            e
           }
         }
       }
@@ -425,7 +425,7 @@ class BlasMatrixBinaryTest {
           println(s"blasmatrix axpy vector: ${matrixlist1.get(i).axpy(ilist1.get(j), 2.0).sum()}")
         } catch {
           case e: AngelException => {
-            println(e)
+            e
           }
         }
       }
@@ -440,7 +440,7 @@ class BlasMatrixBinaryTest {
           println(s"blasmatrix axpy blasmatrix : ${Ufuncs.axpy(matrixlist1.get(i), true, matrixlist1.get(j), false, 2.0).sum()}")
         } catch {
           case e: AngelException => {
-            println(e)
+            e
           }
         }
       }
@@ -458,7 +458,7 @@ class BlasMatrixBinaryTest {
           matrixlist.get(i).dot(ilist.get(j))
         } catch {
           case e: AngelException => {
-            println(e)
+            e
           }
         }
       }
@@ -467,22 +467,22 @@ class BlasMatrixBinaryTest {
           println(s"blasmatrix dot vector: ${Ufuncs.dot(matrixlist1.get(i), true, ilist1.get(j)).sum()}")
         } catch {
           case e: AngelException => {
-            println(e)
+            e
           }
         }
       }
     }
     //blasmatrix vs blasmatrix
-    matrixlist1.get(0).dot(matrixlist1.get(0))
-    matrixlist1.get(1).dot(matrixlist1.get(1))
-    println(s"blasmatrix dot blasmatrix : ${Ufuncs.dot(densematrix3, densematrix1).sum()}")
-    println(s"blasmatrix dot blasmatrix : ${Ufuncs.dot(densematrix4, densematrix2).sum()}")
-    println(s"blasmatrix dot blasmatrix : ${Ufuncs.dot(densematrix3, true, densematrix3, true).sum()}")
-    println(s"blasmatrix dot blasmatrix : ${Ufuncs.dot(densematrix4, true, densematrix4, true).sum()}")
-    println(s"blasmatrix dot blasmatrix : ${Ufuncs.dot(densematrix3, true, densematrix3, false).sum()}")
-    println(s"blasmatrix dot blasmatrix : ${Ufuncs.dot(densematrix4, true, densematrix4, false).sum()}")
-    println(s"blasmatrix dot blasmatrix : ${Ufuncs.dot(densematrix3, false, densematrix3, true).sum()}")
-    println(s"blasmatrix dot blasmatrix : ${Ufuncs.dot(densematrix4, false, densematrix4, true).sum()}")
+    matrixlist1.get(0).dot(matrixlist1.get(0), true)
+    matrixlist1.get(1).dot(matrixlist1.get(1),true)
+    println(s"blasmatrix dot blasmatrix : ${Ufuncs.dot(densematrix3, densematrix1, true).sum()}")
+    println(s"blasmatrix dot blasmatrix : ${Ufuncs.dot(densematrix4, densematrix2, true).sum()}")
+    println(s"blasmatrix dot blasmatrix : ${Ufuncs.dot(densematrix3, true, densematrix3, true, true).sum()}")
+    println(s"blasmatrix dot blasmatrix : ${Ufuncs.dot(densematrix4, true, densematrix4, true, true).sum()}")
+    println(s"blasmatrix dot blasmatrix : ${Ufuncs.dot(densematrix3, true, densematrix3, false, true).sum()}")
+    println(s"blasmatrix dot blasmatrix : ${Ufuncs.dot(densematrix4, true, densematrix4, false, true).sum()}")
+    println(s"blasmatrix dot blasmatrix : ${Ufuncs.dot(densematrix3, false, densematrix3, true, true).sum()}")
+    println(s"blasmatrix dot blasmatrix : ${Ufuncs.dot(densematrix4, false, densematrix4, true, true).sum()}")
   }
 
   @Test
@@ -495,7 +495,7 @@ class BlasMatrixBinaryTest {
           println(s"blasmatrix dot vector: ${Ufuncs.xAx(matrixlist1.get(i), ilist1.get(j))}")
         } catch {
           case e: AngelException => {
-            println(e)
+            e
           }
         }
       }
@@ -512,7 +512,7 @@ class BlasMatrixBinaryTest {
           println(s"blasmatrix dot vector: ${Ufuncs.xAy(matrixlist.get(i), ilist1.get(j), ilist.get(j))}")
         } catch {
           case e: AngelException => {
-            println(e)
+            e
           }
         }
       }
@@ -530,7 +530,7 @@ class BlasMatrixBinaryTest {
             println(s"blasmatrix dot vector: ${Ufuncs.rank1update(matrixlist.get(i), 0.5, ilist1.get(j), ilist.get(t)).sum()}")
           } catch {
             case e: AngelException => {
-              println(e)
+              e
             }
           }
         }
@@ -538,275 +538,4 @@ class BlasMatrixBinaryTest {
     }
   }
 
-  @Test
-  def iaddTest() {
-    //blasmatrix vs vector
-    (0 until ilist.size()).foreach { i =>
-      val doubledensematrix = MFactory.denseDoubleMatrix(100, 1000, densedoubleMatrixValues)
-      val floatdensematrix = MFactory.denseFloatMatrix(100, 1000, densefloatMatrixValues)
-      try {
-        println(s"blasmatrix iadd vector: ${doubledensematrix.iadd(ilist.get(i)).sum()}")
-        println(s"blasmatrix iadd vector: ${floatdensematrix.iadd(ilist.get(i)).sum()}")
-      } catch {
-        case e: AngelException => {
-          println(e)
-        }
-      }
-    }
-
-    //blasmatrix vs blasmatrix
-    (0 until matrixlist1.size()).foreach { j =>
-      try {
-        var doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        var floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix iadd blasmatrix : ${doubledensematrix.iadd(matrixlist1.get(j)).sum()}")
-        println(s"blasmatrix iadd blasmatrix : ${floatdensematrix.iadd(matrixlist1.get(j)).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix iadd blasmatrix : ${Ufuncs.iadd(doubledensematrix, matrixlist1.get(j)).sum()}")
-        println(s"blasmatrix iadd blasmatrix : ${Ufuncs.iadd(floatdensematrix, matrixlist1.get(j)).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix iadd blasmatrix : ${Ufuncs.iadd(doubledensematrix, true, matrixlist1.get(j), true).sum()}")
-        println(s"blasmatrix iadd blasmatrix : ${Ufuncs.iadd(floatdensematrix, true, matrixlist1.get(j), true).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix iadd blasmatrix : ${Ufuncs.iadd(doubledensematrix, true, matrixlist1.get(j), false).sum()}")
-        println(s"blasmatrix iadd blasmatrix : ${Ufuncs.iadd(floatdensematrix, true, matrixlist1.get(j), false).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix iadd blasmatrix : ${Ufuncs.iadd(doubledensematrix, false, matrixlist1.get(j), true).sum()}")
-        println(s"blasmatrix iadd blasmatrix : ${Ufuncs.iadd(floatdensematrix, false, matrixlist1.get(j), true).sum()}")
-      } catch {
-        case e: AngelException => {
-          println(e)
-        }
-      }
-    }
-    //blasmatrix vs numeric
-    (0 until matrixlist.size()).foreach { i =>
-      println(s"blasmatrix iadd numeric : ${matrixlist.get(i).iadd(2.0).sum()}")
-    }
-  }
-
-  @Test
-  def isubTest() {
-    //blasmatrix vs vector
-    (0 until ilist.size()).foreach { i =>
-      val doubledensematrix = MFactory.denseDoubleMatrix(100, 1000, densedoubleMatrixValues)
-      val floatdensematrix = MFactory.denseFloatMatrix(100, 1000, densefloatMatrixValues)
-      try {
-        println(s"blasmatrix isub vector: ${doubledensematrix.isub(ilist.get(i)).sum()}")
-        println(s"blasmatrix isub vector: ${floatdensematrix.isub(ilist.get(i)).sum()}")
-      } catch {
-        case e: AngelException => {
-          println(e)
-        }
-      }
-    }
-
-    //blasmatrix vs blasmatrix
-    (0 until matrixlist1.size()).foreach { j =>
-      try {
-        var doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        var floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix isub blasmatrix : ${doubledensematrix.isub(matrixlist1.get(j)).sum()}")
-        println(s"blasmatrix isub blasmatrix : ${floatdensematrix.isub(matrixlist1.get(j)).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix isub blasmatrix : ${Ufuncs.isub(doubledensematrix, matrixlist1.get(j)).sum()}")
-        println(s"blasmatrix isub blasmatrix : ${Ufuncs.isub(floatdensematrix, matrixlist1.get(j)).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix isub blasmatrix : ${Ufuncs.isub(doubledensematrix, true, matrixlist1.get(j), true).sum()}")
-        println(s"blasmatrix isub blasmatrix : ${Ufuncs.isub(floatdensematrix, true, matrixlist1.get(j), true).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix isub blasmatrix : ${Ufuncs.isub(doubledensematrix, true, matrixlist1.get(j), false).sum()}")
-        println(s"blasmatrix isub blasmatrix : ${Ufuncs.isub(floatdensematrix, true, matrixlist1.get(j), false).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix isub blasmatrix : ${Ufuncs.isub(doubledensematrix, false, matrixlist1.get(j), true).sum()}")
-        println(s"blasmatrix isub blasmatrix : ${Ufuncs.isub(floatdensematrix, false, matrixlist1.get(j), true).sum()}")
-      } catch {
-        case e: AngelException => {
-          println(e)
-        }
-      }
-    }
-    //blasmatrix vs numeric
-    (0 until matrixlist.size()).foreach { i =>
-      println(s"blasmatrix isub numeric : ${matrixlist.get(i).isub(2.0).sum()}")
-    }
-  }
-
-  @Test
-  def imulTest() {
-    //blasmatrix vs vector
-    (0 until ilist.size()).foreach { i =>
-      val doubledensematrix = MFactory.denseDoubleMatrix(100, 1000, densedoubleMatrixValues)
-      val floatdensematrix = MFactory.denseFloatMatrix(100, 1000, densefloatMatrixValues)
-      try {
-        println(s"blasmatrix imul vector: ${doubledensematrix.imul(ilist.get(i)).sum()}")
-        println(s"blasmatrix imul vector: ${floatdensematrix.imul(ilist.get(i)).sum()}")
-      } catch {
-        case e: AngelException => {
-          println(e)
-        }
-      }
-    }
-
-    //blasmatrix vs blasmatrix
-    (0 until matrixlist1.size()).foreach { j =>
-      try {
-        var doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        var floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix imul blasmatrix : ${doubledensematrix.imul(matrixlist1.get(j)).sum()}")
-        println(s"blasmatrix imul blasmatrix : ${floatdensematrix.imul(matrixlist1.get(j)).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix imul blasmatrix : ${Ufuncs.imul(doubledensematrix, matrixlist1.get(j)).sum()}")
-        println(s"blasmatrix imul blasmatrix : ${Ufuncs.imul(floatdensematrix, matrixlist1.get(j)).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix imul blasmatrix : ${Ufuncs.imul(doubledensematrix, true, matrixlist1.get(j), true).sum()}")
-        println(s"blasmatrix imul blasmatrix : ${Ufuncs.imul(floatdensematrix, true, matrixlist1.get(j), true).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix imul blasmatrix : ${Ufuncs.imul(doubledensematrix, true, matrixlist1.get(j), false).sum()}")
-        println(s"blasmatrix imul blasmatrix : ${Ufuncs.imul(floatdensematrix, true, matrixlist1.get(j), false).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix imul blasmatrix : ${Ufuncs.imul(doubledensematrix, false, matrixlist1.get(j), true).sum()}")
-        println(s"blasmatrix imul blasmatrix : ${Ufuncs.imul(floatdensematrix, false, matrixlist1.get(j), true).sum()}")
-      } catch {
-        case e: AngelException => {
-          println(e)
-        }
-      }
-    }
-    //blasmatrix vs numeric
-    (0 until matrixlist.size()).foreach { i =>
-      println(s"blasmatrix imul numeric : ${matrixlist.get(i).imul(2.0).sum()}")
-    }
-  }
-
-  @Test
-  def idivTest() {
-    //blasmatrix vs vector
-    (0 until ilist.size()).foreach { i =>
-      val doubledensematrix = MFactory.denseDoubleMatrix(100, 1000, densedoubleMatrixValues)
-      val floatdensematrix = MFactory.denseFloatMatrix(100, 1000, densefloatMatrixValues)
-      try {
-        println(s"blasmatrix idiv vector: ${doubledensematrix.idiv(ilist.get(i)).sum()}")
-        println(s"blasmatrix idiv vector: ${floatdensematrix.idiv(ilist.get(i)).sum()}")
-      } catch {
-        case e: AngelException => {
-          println(e)
-        }
-      }
-    }
-
-    //blasmatrix vs blasmatrix
-    (0 until matrixlist1.size()).foreach { j =>
-      try {
-        var doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        var floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix idiv blasmatrix : ${doubledensematrix.idiv(matrixlist1.get(j)).sum()}")
-        println(s"blasmatrix idiv blasmatrix : ${floatdensematrix.idiv(matrixlist1.get(j)).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix idiv blasmatrix : ${Ufuncs.idiv(doubledensematrix, matrixlist1.get(j)).sum()}")
-        println(s"blasmatrix idiv blasmatrix : ${Ufuncs.idiv(floatdensematrix, matrixlist1.get(j)).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix idiv blasmatrix : ${Ufuncs.idiv(doubledensematrix, true, matrixlist1.get(j), true).sum()}")
-        println(s"blasmatrix idiv blasmatrix : ${Ufuncs.idiv(floatdensematrix, true, matrixlist1.get(j), true).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix idiv blasmatrix : ${Ufuncs.idiv(doubledensematrix, true, matrixlist1.get(j), false).sum()}")
-        println(s"blasmatrix idiv blasmatrix : ${Ufuncs.idiv(floatdensematrix, true, matrixlist1.get(j), false).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix idiv blasmatrix : ${Ufuncs.idiv(doubledensematrix, false, matrixlist1.get(j), true).sum()}")
-        println(s"blasmatrix idiv blasmatrix : ${Ufuncs.idiv(floatdensematrix, false, matrixlist1.get(j), true).sum()}")
-      } catch {
-        case e: AngelException => {
-          println(e)
-        }
-      }
-    }
-    //blasmatrix vs numeric
-    (0 until matrixlist.size()).foreach { i =>
-      println(s"blasmatrix idiv numeric : ${matrixlist.get(i).idiv(2.0).sum()}")
-    }
-  }
-
-  @Test
-  def iaxpyTest() {
-    //blasmatrix vs vector
-    (0 until ilist.size()).foreach { i =>
-      val doubledensematrix = MFactory.denseDoubleMatrix(100, 1000, densedoubleMatrixValues)
-      val floatdensematrix = MFactory.denseFloatMatrix(100, 1000, densefloatMatrixValues)
-      try {
-        println(s"blasmatrix iaxpy vector: ${doubledensematrix.iaxpy(ilist.get(i), 2.0).sum()}")
-        println(s"blasmatrix iaxpy vector: ${floatdensematrix.iaxpy(ilist.get(i), 2.0).sum()}")
-      } catch {
-        case e: AngelException => {
-          println(e)
-        }
-      }
-    }
-
-    //blasmatrix vs blasmatrix
-    (0 until matrixlist1.size()).foreach { j =>
-      try {
-        var doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        var floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix iaxpy blasmatrix : ${doubledensematrix.iaxpy(matrixlist1.get(j), 2.0).sum()}")
-        println(s"blasmatrix iaxpy blasmatrix : ${floatdensematrix.iaxpy(matrixlist1.get(j), 2.0).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix iaxpy blasmatrix : ${Ufuncs.iaxpy(doubledensematrix, matrixlist1.get(j), 2.0).sum()}")
-        println(s"blasmatrix iaxpy blasmatrix : ${Ufuncs.iaxpy(floatdensematrix, matrixlist1.get(j), 2.0).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix iaxpy blasmatrix : ${Ufuncs.iaxpy(doubledensematrix, true, matrixlist1.get(j), true, 2.0).sum()}")
-        println(s"blasmatrix iaxpy blasmatrix : ${Ufuncs.iaxpy(floatdensematrix, true, matrixlist1.get(j), true, 2.0).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix iaxpy blasmatrix : ${Ufuncs.iaxpy(doubledensematrix, true, matrixlist1.get(j), false, 2.0).sum()}")
-        println(s"blasmatrix iaxpy blasmatrix : ${Ufuncs.iaxpy(floatdensematrix, true, matrixlist1.get(j), false, 2.0).sum()}")
-
-        doubledensematrix = MFactory.denseDoubleMatrix(100, 100, densedoubleMatrixValues1)
-        floatdensematrix = MFactory.denseFloatMatrix(100, 100, densefloatMatrixValues1)
-        println(s"blasmatrix iaxpy blasmatrix : ${Ufuncs.iaxpy(doubledensematrix, false, matrixlist1.get(j), true, 2.0).sum()}")
-        println(s"blasmatrix iaxpy blasmatrix : ${Ufuncs.iaxpy(floatdensematrix, false, matrixlist1.get(j), true, 2.0).sum()}")
-
-      } catch {
-        case e: AngelException => {
-          println(e)
-        }
-      }
-    }
-  }
 }
